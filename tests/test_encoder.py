@@ -138,3 +138,57 @@ def test_backbone_factory_always_loads_float32_weights(monkeypatch):
     make = backbone_factory(EncoderArm("org/model", "abc123"))
     assert make() == "backbone"
     assert calls == [("org/model", {"revision": "abc123", "dtype": torch.float32})]
+
+
+def _train_with_snapshots(tokenizer, texts, labels, cfg, eval_texts):
+    snapshots = {}
+
+    def snapshot(epoch, model):
+        snapshots[epoch] = predict_proba(model, tokenizer, eval_texts)
+
+    _, history = train_classifier(texts, labels, N_CLASSES, cfg, tokenizer, tiny_backbone,
+                                  on_epoch_end=snapshot)
+    return snapshots, history
+
+
+def test_epoch_callback_does_not_change_training(tokenizer):
+    texts, labels = synthetic()
+    cfg = EncoderConfig(lr=1e-3, epochs=4, batch_size=4)
+    _, plain = train_classifier(texts, labels, N_CLASSES, cfg, tokenizer, tiny_backbone)
+    snapshots, with_callback = _train_with_snapshots(tokenizer, texts, labels, cfg, texts[:5])
+    assert with_callback == plain  # callback leaves model in train mode, consumes no RNG
+    assert sorted(snapshots) == [1, 2, 3, 4]
+
+
+def test_stopping_at_epoch_k_on_a_longer_schedule_reproduces_epoch_k(tokenizer):
+    # What E003 relies on: the eval phase trains k* epochs on the 10-epoch schedule
+    # and must end where the search run was at epoch k*.
+    texts, labels = synthetic()
+    probe = texts[:6]
+    snapshots, long_history = _train_with_snapshots(
+        tokenizer, texts, labels, EncoderConfig(lr=1e-3, epochs=6, batch_size=4), probe)
+    short, short_history = train_classifier(
+        texts, labels, N_CLASSES,
+        EncoderConfig(lr=1e-3, epochs=3, schedule_epochs=6, batch_size=4),
+        tokenizer, tiny_backbone)
+    np.testing.assert_allclose(predict_proba(short, tokenizer, probe), snapshots[3], atol=1e-6)
+    assert short_history == long_history[:4]
+
+
+def test_stopping_early_on_its_own_schedule_differs(tokenizer):
+    # Control for the test above: without schedule_epochs the LR decays faster.
+    texts, labels = synthetic()
+    snapshots, _ = _train_with_snapshots(
+        tokenizer, texts, labels, EncoderConfig(lr=1e-3, epochs=6, batch_size=4), texts[:6])
+    short, _ = train_classifier(texts, labels, N_CLASSES,
+                                EncoderConfig(lr=1e-3, epochs=3, batch_size=4),
+                                tokenizer, tiny_backbone)
+    assert not np.allclose(predict_proba(short, tokenizer, texts[:6]), snapshots[3], atol=1e-6)
+
+
+def test_schedule_shorter_than_training_is_rejected(tokenizer):
+    texts, labels = synthetic()
+    with pytest.raises(ValueError):
+        train_classifier(texts, labels, N_CLASSES,
+                         EncoderConfig(lr=1e-3, epochs=4, schedule_epochs=2),
+                         tokenizer, tiny_backbone)

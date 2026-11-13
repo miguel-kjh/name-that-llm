@@ -6,7 +6,10 @@ pytest.importorskip("torch")
 pytest.importorskip("transformers")
 
 from name_that_llm.experiments.run_encoder import (  # noqa: E402
+    MAX_EPOCHS,
+    SEARCH_LRS,
     append_row,
+    chosen_configs,
     completed_keys,
     control_train_labels,
     load_folds,
@@ -73,8 +76,10 @@ def test_resume_sees_runs_already_written(tmp_path):
 
 
 def test_oof_paths_are_unique_per_run(tmp_path):
-    keys = [("search", arm, lr, ep, 0, f) for arm in "AB" for lr in (1e-5, 3e-5, 5e-5)
-            for ep in (4, 8) for f in range(5)]
+    keys = [("search", arm, lr, MAX_EPOCHS, 0, f) for arm in "AB" for lr in SEARCH_LRS
+            for f in range(5)]
+    keys += [("eval", arm, lr, ep, s, f) for arm in "AB" for lr in SEARCH_LRS
+             for ep in range(1, MAX_EPOCHS + 1) for s in (1, 2) for f in range(5)]
     assert len({oof_path(tmp_path, k) for k in keys}) == len(keys)
 
 
@@ -86,3 +91,46 @@ def test_read_oof_tags_seed_and_fold(tmp_path):
         pd.DataFrame({"id": ["x"], "model": ["m"], "pred": ["m"]}).to_parquet(path)
     oof = read_oof(tmp_path, keys)
     assert oof[["seed", "fold"]].values.tolist() == [[1, 0], [2, 3]]
+
+
+def _write_search(tmp_path, arm, lr, fold, correct_epochs):
+    """A fake search run: 2 validation rows per epoch, right only at `correct_epochs`."""
+    key = ("search", arm, lr, MAX_EPOCHS, 0, fold)
+    rows = []
+    for epoch in range(1, MAX_EPOCHS + 1):
+        for i, true in enumerate(["m1", "m2"]):
+            right = epoch in correct_epochs
+            rows.append({"id": f"{fold}-{i}", "model": true, "epoch": epoch,
+                         "pred": true if right else ("m2" if true == "m1" else "m1")})
+    path = oof_path(tmp_path, key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_parquet(path)
+    append_row(tmp_path / "search.csv", dict(zip(
+        ["phase", "arm", "lr", "epochs", "seed", "fold"], key)))
+
+
+def test_chosen_config_picks_best_lr_and_epoch(tmp_path):
+    folds = (0, 1)
+    for lr in SEARCH_LRS:
+        for fold in folds:
+            # Only lr 3e-5 is right, and only at epochs 6 and 7: fewer epochs win ties.
+            _write_search(tmp_path, "A", lr, fold, {6, 7} if lr == 3e-5 else set())
+    choice = chosen_configs(tmp_path, ["A"], folds)["A"]
+    assert (choice["lr"], choice["epochs"]) == (3e-5, 6)
+    assert choice["balanced_accuracy"] == 1.0
+
+
+def test_chosen_config_refuses_an_incomplete_search(tmp_path):
+    for lr in SEARCH_LRS:
+        _write_search(tmp_path, "A", lr, 0, set())
+    with pytest.raises(SystemExit):
+        chosen_configs(tmp_path, ["A"], (0, 1))
+
+
+def test_stop_rule_needs_one_arm_at_the_floor():
+    from name_that_llm.experiments.run_encoder import STOP_IF_SEARCH_BELOW, passes_stop_rule
+
+    below = {"A": {"balanced_accuracy": STOP_IF_SEARCH_BELOW - 0.01},
+             "B": {"balanced_accuracy": 0.1}}
+    assert not passes_stop_rule(below)
+    assert passes_stop_rule({**below, "B": {"balanced_accuracy": STOP_IF_SEARCH_BELOW}})

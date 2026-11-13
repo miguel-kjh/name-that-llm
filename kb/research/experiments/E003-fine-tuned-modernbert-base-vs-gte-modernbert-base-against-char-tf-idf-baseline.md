@@ -60,11 +60,14 @@ Responder dos decisiones con un único conjunto de runs:
     con truncado; se espera 0 % de pasajes truncados (≤ 274 palabras).
   - AdamW, weight decay 0,01, batch 16, warmup lineal 10 % + decaimiento lineal, gradient
     clip 1,0, bf16, cross-entropy sin pesos de clase (las clases están balanceadas).
-  - Sin early stopping con el fold de validación: el número de épocas es un hiperparámetro
-    fijado en la fase de búsqueda.
-- **Rejilla de búsqueda (por brazo):** lr {1e-5, 3e-5, 5e-5} × épocas {4, 8}. Amplía la rejilla
-  de lr de [[H003]] con el número de épocas, porque sin early stopping hay que fijarlo de
-  antemano; se decide antes de ejecutar nada.
+  - Calendario de lr de 10 épocas (warmup lineal 10 % + decaimiento lineal) en todos los runs.
+  - Early stopping sin mirar el fold que se mide: la época de parada k* se elige en la
+    búsqueda (semilla 0) y en la fase de decisión se entrena con el mismo calendario de 10
+    épocas y se para tras la época k*.
+- **Búsqueda (por brazo):** lr {1e-5, 3e-5, 5e-5}; cada lr se entrena 10 épocas y el fold de
+  validación se evalúa al final de cada una. Se elige el par (lr, k*) con mayor balanced
+  accuracy OOF de la semilla 0. Sustituye a la rejilla de épocas {4, 8} del primer diseño
+  (cambio decidido con el usuario antes de ejecutar; ver Progress).
 - **Seeds:** la semilla de folds `s` se usa también como semilla de entrenamiento (`torch`,
   `numpy`, `random`, inicialización de la cabeza, orden de los batches).
 - **Comparator:** E002 (TF-IDF de caracteres + LR), mismos folds. Valores por semilla en
@@ -83,18 +86,19 @@ Responder dos decisiones con un único conjunto de runs:
      accuracy en esos mismos 64. Si no, hay un fallo de implementación y no se sigue.
    - Los pesos de los dos brazos se cargan en float32.
 2. **Fase de búsqueda (semilla 0):**
-   `python -m name_that_llm.experiments.run_encoder --phase search --arm {A,B}`
-   - 2 brazos × 6 configuraciones × 5 folds = 60 runs.
-   - Se elige por brazo la configuración con mayor balanced accuracy OOF de la semilla 0.
-     Empates (< 0,005): la de menos épocas y luego la de menor lr.
+   `python -m name_that_llm.experiments.run_encoder --phase search`
+   - 2 brazos × 3 lr × 5 folds = 30 runs de 10 épocas, evaluados tras cada época.
+   - Se elige por brazo el par (lr, k*) con mayor balanced accuracy OOF de la semilla 0 (los 5
+     folds juntos). Empates (< 0,005): menos épocas y luego menor lr.
 3. **Fase de decisión (semillas 1 y 2):**
-   `python -m name_that_llm.experiments.run_encoder --phase eval --arm {A,B}`
-   - Configuración elegida por brazo; 2 brazos × 2 semillas × 5 folds = 20 runs.
+   `python -m name_that_llm.experiments.run_encoder --phase eval`
+   - (lr, k*) elegido por brazo, calendario de 10 épocas parado tras k*;
+     2 brazos × 2 semillas × 5 folds = 20 runs.
    - Se guardan las probabilidades OOF (para ensembles futuros) y las métricas por fold.
 4. **Control con etiquetas barajadas:**
-   `python -m name_that_llm.experiments.run_encoder --phase control --arm A`
-   - Brazo A, configuración elegida, semilla de folds 1, etiquetas barajadas dentro del
-     train de cada fold.
+   `python -m name_that_llm.experiments.run_encoder --phase control --arms A`
+   - Brazo A, (lr, k*) elegido, semilla de folds 1, etiquetas barajadas dentro del train de
+     cada fold.
 5. **Guardarraíl de inferencia:** medir el tiempo de predecir 4.000 pasajes (los de train
    repetidos hasta 4.000) con el mejor brazo en la GPU local, incluida la carga del modelo.
 6. **Resumen:** `python -m name_that_llm.experiments.run_encoder --phase summarize` escribe
@@ -142,7 +146,8 @@ Métrica principal: balanced accuracy OOF por modelo, media de las semillas 1 y 
 
 - Si tras la fase de búsqueda el mejor brazo no llega a 0,20 en la semilla 0, parar y revisar
   la implementación antes de gastar la fase de decisión.
-- Presupuesto: 85 runs de un fold (60 de búsqueda + 20 de decisión + 5 de control). Si el tiempo real supera 3× la
+- Presupuesto: 55 runs de un fold (30 de búsqueda de 10 épocas + 20 de decisión + 5 de
+  control), como máximo 550 épocas de entrenamiento. Si el tiempo real supera 3× la
   estimación, parar y replantear la rejilla.
 
 ## Progress
@@ -161,6 +166,20 @@ Métrica principal: balanced accuracy OOF por modelo, media de las semillas 1 y 
 - [x] (`2026-11-13`) Preflight **superado** (`preflight.json`): folds idénticos a E002 en las 3
   semillas; 0 pasajes truncados (máximo 396 tokens); pesos float32; los dos brazos memorizan
   los 64 pasajes (100 %; pérdida A 3,22 → 0,0007, B 3,14 → 0,0014).
+- [x] (`2026-11-13`) Cambio de diseño acordado con el usuario antes de ejecutar: en vez de
+  la rejilla de épocas {4, 8}, cada lr se entrena 10 épocas con la curva por época y se
+  elige (lr, k*); la fase de decisión para tras k* sobre el mismo calendario de 10 épocas.
+  Un test comprueba que parar en k con el calendario de 10 reproduce exactamente la época k
+  del run largo. 88 tests pasan.
+- [x] (`2026-11-13`) Smoke test de todas las fases en GPU (30 prompts, fold 0, en el
+  scratchpad, fuera de `kb/`): search → eval → control → timing → summarize corren de principio a
+  fin; los runs de decisión paran en k* (historial de k*+1 pérdidas); las probabilidades
+  suman 1; inferencia de 4.000 pasajes en 7–8 s por brazo. Sus métricas no significan nada
+  (unos 430 pasajes de train) y no se usan. Arreglos tras el smoke: temporizador monotónico
+  (un run marcó −0,6 s por un salto de reloj de WSL), log de decisión sin "best epoch", y la
+  regla de parada ahora bloquea `--phase eval` en vez de solo avisar. 89 tests pasan.
+- Estimación con los datos completos: unos 3–4 min por run de búsqueda de 10 épocas, unas
+  2,5–3 h para todo el experimento.
 - [ ] Fase de búsqueda (semilla 0).
 - [ ] Fase de decisión (semillas 1 y 2).
 - [ ] Control con etiquetas barajadas y guardarraíl de inferencia.
@@ -172,7 +191,9 @@ Datos en bruto previstos en `kb/research/data/E003/`:
 
 - `manifest.json`: commit del código, hash de los datos, versiones, commits de los modelos en
   el hub, GPU, configuración elegida por brazo.
-- `search.csv`: una fila por brazo × configuración × fold (semilla 0).
+- `search.csv`: una fila por brazo × lr × fold (semilla 0), con la balanced accuracy de cada
+  época.
+- `search_curves.csv`: balanced accuracy OOF por brazo × lr × época (los 5 folds juntos).
 - `runs.csv`: una fila por brazo × semilla × fold de la fase de decisión, con balanced accuracy,
   métricas secundarias, pérdida inicial y final, y tiempo.
 - `preflight.json`, `timing.json`: comprobaciones previas y guardarraíl de inferencia.

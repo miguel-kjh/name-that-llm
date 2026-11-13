@@ -32,8 +32,14 @@ ARMS = {
 
 @dataclass(frozen=True)
 class EncoderConfig:
+    """Training recipe. `epochs` is how long to train; `schedule_epochs` (default:
+    `epochs`) sets the length of the warmup + linear-decay schedule, so a run can
+    stop early on the same schedule as a longer one.
+    """
+
     lr: float
     epochs: int
+    schedule_epochs: int | None = None
     batch_size: int = 16
     max_length: int = 512
     weight_decay: float = 0.01
@@ -125,11 +131,14 @@ def train_classifier(
     tokenizer: PreTrainedTokenizerBase,
     make_backbone: Callable[[], nn.Module],
     device: torch.device | str = "cpu",
+    on_epoch_end: Callable[[int, MeanPoolClassifier], None] | None = None,
 ) -> tuple[MeanPoolClassifier, list[float]]:
     """Fine-tune a fresh classifier. Returns it with its loss history.
 
     `loss_history[0]` is the loss of the first batch before any update; the
-    rest are the mean training loss of each epoch.
+    rest are the mean training loss of each epoch. `on_epoch_end(epoch, model)`
+    is called after each epoch (1-based), e.g. to score a validation set; it
+    does not change the training run.
     """
     device = torch.device(device)
     set_seed(config.seed)
@@ -138,7 +147,9 @@ def train_classifier(
     y = torch.tensor(np.asarray(labels), dtype=torch.long)
 
     steps_per_epoch = -(-len(ids) // config.batch_size)
-    total_steps = steps_per_epoch * config.epochs
+    if config.schedule_epochs is not None and config.schedule_epochs < config.epochs:
+        raise ValueError("schedule_epochs must be at least epochs")
+    total_steps = steps_per_epoch * (config.schedule_epochs or config.epochs)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
     scheduler = get_linear_schedule_with_warmup(
         optimizer, int(config.warmup_ratio * total_steps), total_steps
@@ -148,7 +159,7 @@ def train_classifier(
 
     history: list[float] = []
     model.train()
-    for _ in range(config.epochs):
+    for epoch in range(1, config.epochs + 1):
         order = torch.randperm(len(ids), generator=generator).tolist()
         epoch_losses = []
         for idx, input_ids, mask in _batches(ids, order, config.batch_size, tokenizer.pad_token_id):
@@ -164,6 +175,9 @@ def train_classifier(
             scheduler.step()
             epoch_losses.append(loss.item())
         history.append(float(np.mean(epoch_losses)))
+        if on_epoch_end is not None:
+            on_epoch_end(epoch, model)
+            model.train()
     return model, history
 
 
