@@ -170,3 +170,4 @@ Implementation work can happen, but it is not a parallel core artifact graph in 
 - Submission notebooks must run offline in under 9 hours and write `submission.parquet` with columns `id,model`.
 - Corrections and lessons from the user go in `kb/memory/` (rule, why, how to apply) with one line in `kb/memory/README.md`.
 - End every session with `git commit` and `git push`.
+- Always write GitHub issues, pull requests and commit messages in English, even when the conversation is in another language.
