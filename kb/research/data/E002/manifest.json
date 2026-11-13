@@ -1,0 +1,51 @@
+{
+  "experiment": "E002",
+  "issue": 3,
+  "created_utc": "2026-11-13T17:04:55+00:00",
+  "command": "scripts/run_baseline.py",
+  "code_revision": "19f24e7de7e539d98672127dea250867de688986-dirty",
+  "data": {
+    "path": "data/train.csv",
+    "sha256": "40a22ce8d88c5f46feb4637a099db815bef5f713ffe53e89dbe1b7b21de77707",
+    "rows": 2699,
+    "prompts": 150,
+    "models": 18
+  },
+  "validation": {
+    "scheme": "GroupKFold(shuffle=True)",
+    "group": "prompt_id",
+    "n_splits": 5,
+    "seeds": [
+      0,
+      1,
+      2
+    ]
+  },
+  "model_config": {
+    "tfidf": {
+      "analyzer": "char_wb",
+      "ngram_range": [
+        1,
+        5
+      ],
+      "sublinear_tf": true,
+      "min_df": 2,
+      "lowercase": false
+    },
+    "logreg": {
+      "C": 10.0,
+      "max_iter": 2000
+    }
+  },
+  "control": {
+    "labels": "permuted with numpy default_rng(0)",
+    "fold_seed": 0
+  },
+  "versions": {
+    "python": "3.12.3",
+    "sklearn": "1.9.1",
+    "pandas": "3.1.1",
+    "numpy": "2.5.4"
+  },
+  "runtime_seconds": 235.3
+}
