@@ -275,3 +275,6 @@ wandb/
 # Datos de la competición (no se suben a git)
 data/
 submission.parquet
+
+# PAPERS
+/papers
