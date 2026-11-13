@@ -1,0 +1,28 @@
+[project]
+name = "name-that-llm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "miguel-kjh", email = "miguelangel.kjh@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=3.1.1",
+    "pyarrow>=26.0.1",
+    "scikit-learn>=1.9.1",
+]
+
+[project.scripts]
+name-that-llm = "name_that_llm:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "kaggle>=2.2.5",
+    "six>=1.17.0",
+]
