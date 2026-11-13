@@ -8,9 +8,11 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "matplotlib>=3.11.2",
     "pandas>=3.1.1",
     "pyarrow>=26.0.1",
     "scikit-learn>=1.9.1",
+    "scipy>=1.18.1",
 ]
 
 [project.scripts]
@@ -24,5 +26,6 @@ build-backend = "uv_build"
 dev = [
     "ipykernel>=7.4.0",
     "kaggle>=2.2.5",
+    "pytest>=9.2.0",
     "six>=1.17.0",
 ]
