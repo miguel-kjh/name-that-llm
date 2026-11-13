@@ -7,14 +7,14 @@ type: active-state
 
 ## Current Objective
 
-Montar la validación GroupKFold por `prompt_id` (5 folds) y medir el baseline de TF-IDF de
-n-gramas de caracteres + regresión logística con balanced accuracy.
+Comprobar que la validación local (GroupKFold por `prompt_id`) y el leaderboard público de
+Kaggle van en la misma dirección, empezando por un notebook de envío con el baseline.
 
 ## Next Step
 
-Fijar los 5 folds agrupados por `prompt_id`, formular la hipótesis del baseline y medirlo,
-informando también el accuracy por tramo de longitud ([[F001]]: la longitud total no
-identifica al modelo, así que los pasajes cortos tendrán menos señal).
+Planificar con el usuario el notebook de envío del baseline (offline, < 9 h, escribe
+`submission.parquet` con `id,model`). Referencia local: 0,312 de balanced accuracy
+([[F002]]); objetivo de la misión: ≥ 0,412 con los mismos folds.
 
 ## Blocker
 
@@ -22,12 +22,15 @@ None.
 
 ## Working Set
 
-- [[H001]] → [[E001]] → [[F001]]: EDA de longitud (issue #1). La longitud no depende del
-  modelo; la longitud de frase sí, pendiente de confirmar en el EDA de estilo.
-- Código: `src/name_that_llm/eda_length.py`, `scripts/eda_length.py`, `tests/`.
-- Primary skill de la fase: `$build-maintainable-software` (implementación del EDA).
+- [[H002]] → [[E002]] → [[F002]]: baseline 0,312; 52 % de los errores dentro del laboratorio.
+  Folds fijos en `kb/research/data/E002/folds.csv`.
+- [[H001]] → [[E001]] → [[F001]]: la longitud no identifica al modelo; la longitud de frase
+  quizá sí.
+- Código: `src/name_that_llm/{validation,metrics,baseline,labels}.py`,
+  `src/name_that_llm/experiments/run_baseline.py`.
+- Primary skill de la fase: `$experiment-rigor` (protocolo y baseline).
 
 ## Links
 
 - Mission: [[CHALLENGE]]
-- Latest finding: [[F001]]
+- Latest finding: [[F002]]

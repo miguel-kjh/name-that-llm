@@ -26,7 +26,7 @@ efecto del prompt gracias al diseño cruzado (150 prompts × 18 modelos). Issue 
 - Environment: `uv`, Python ≥ 3.12, scipy, pandas, matplotlib.
 - Data: `data/train.csv` (2.699 filas). `data/test.csv` local solo tiene 3 filas de ejemplo.
 - Compute: CPU, segundos.
-- Dependencies: `src/name_that_llm/eda_length.py`, `scripts/eda_length.py`,
+- Dependencies: `src/name_that_llm/eda_length.py`, `src/name_that_llm/experiments/eda_length.py`,
   `tests/test_eda_length.py`.
 
 ## Procedure
@@ -41,9 +41,9 @@ efecto del prompt gracias al diseño cruzado (150 prompts × 18 modelos). Issue 
 
 ## Expected Outcome
 
-- Confirm if: `uv run python scripts/eda_length.py` -> ε²(n_words, model) < 0,01 y
+- Confirm if: `python -m name_that_llm.experiments.eda_length` -> ε²(n_words, model) < 0,01 y
   W(n_words) < 0,05
-- Reject if: `uv run python scripts/eda_length.py` -> ε²(n_words, model) ≥ 0,01 o
+- Reject if: `python -m name_that_llm.experiments.eda_length` -> ε²(n_words, model) ≥ 0,01 o
   W(n_words) ≥ 0,05, con p < 0,01
 
 ## Progress

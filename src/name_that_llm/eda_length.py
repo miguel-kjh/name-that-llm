@@ -13,28 +13,12 @@ from dataclasses import dataclass
 import pandas as pd
 from scipy import stats
 
-LENGTH_FEATURES = ("n_words", "n_chars", "n_sentences")
+from name_that_llm.labels import lab_of  # noqa: F401  (re-exported for callers)
 
-# Model-name prefix -> lab. Order does not matter: prefixes do not overlap.
-_LAB_BY_PREFIX = {
-    "claude": "Anthropic",
-    "gemini": "Google",
-    "gpt": "OpenAI",
-    "glm": "ZAI",
-    "kimi": "Moonshot AI",
-    "qwen": "Qwen",
-}
+LENGTH_FEATURES = ("n_words", "n_chars", "n_sentences")
 
 # A sentence ends at one or more of .!? followed by whitespace or end of text.
 _SENTENCE_END = re.compile(r"[.!?]+(?=\s|$)")
-
-
-def lab_of(model: str) -> str:
-    """Return the lab that trained `model`; raise on an unknown model name."""
-    for prefix, lab in _LAB_BY_PREFIX.items():
-        if model.startswith(prefix):
-            return lab
-    raise ValueError(f"Unknown model, no lab mapping: {model!r}")
 
 
 def count_sentences(text: str) -> int:

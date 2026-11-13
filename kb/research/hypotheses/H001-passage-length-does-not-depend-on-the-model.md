@@ -52,8 +52,8 @@ del tema.
 ## Test Plan
 
 - Experiment(s): [[E001]]
-- Confirm if: `uv run python scripts/eda_length.py` -> ε²(words, model) < 0,01 y W(words) < 0,05
-- Reject if: `uv run python scripts/eda_length.py` -> ε²(words, model) ≥ 0,01 o W(words) ≥ 0,05,
+- Confirm if: `python -m name_that_llm.experiments.eda_length` -> ε²(words, model) < 0,01 y W(words) < 0,05
+- Reject if: `python -m name_that_llm.experiments.eda_length` -> ε²(words, model) ≥ 0,01 o W(words) ≥ 0,05,
   con p < 0,01
 
 ## Evidence
