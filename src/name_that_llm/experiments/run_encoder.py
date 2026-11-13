@@ -230,6 +230,7 @@ def phase_preflight(train, folds_csv, classes, args) -> None:
     report["arms"] = {}
     for arm in args.arms:
         tokenizer = load_tokenizer(ARMS[arm])
+        weights_dtype = str(next(backbone_factory(ARMS[arm])().parameters()).dtype)
         cfg = EncoderConfig(**PREFLIGHT_CONFIG, max_length=MAX_LENGTH, seed=0)
         model, history = train_classifier(sample.text.tolist(), y, len(classes), cfg,
                                           tokenizer, backbone_factory(ARMS[arm]), device())
@@ -238,6 +239,7 @@ def phase_preflight(train, folds_csv, classes, args) -> None:
         torch.cuda.empty_cache()
         report["arms"][arm] = {
             "model": ARMS[arm].name, "revision": ARMS[arm].revision,
+            "weights_dtype": weights_dtype,
             "n_truncated": count_truncated(tokenizer, train.text.tolist(), MAX_LENGTH),
             "max_tokens": max(len(t) for t in tokenizer(train.text.tolist())["input_ids"]),
             "memorize_train_accuracy": float((preds == y).mean()),
@@ -247,6 +249,7 @@ def phase_preflight(train, folds_csv, classes, args) -> None:
         report["cuda"]
         and all(report["folds_match_e002"].values())
         and all(a["n_truncated"] == 0 for a in report["arms"].values())
+        and all(a["weights_dtype"] == "torch.float32" for a in report["arms"].values())
         and all(a["memorize_train_accuracy"] >= PREFLIGHT_MIN_TRAIN_ACCURACY
                 for a in report["arms"].values())
     )

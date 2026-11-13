@@ -77,8 +77,13 @@ def load_tokenizer(arm: EncoderArm) -> PreTrainedTokenizerBase:
 
 
 def backbone_factory(arm: EncoderArm) -> Callable[[], nn.Module]:
-    """A function that returns fresh pretrained weights of `arm` on each call."""
-    return lambda: AutoModel.from_pretrained(arm.name, revision=arm.revision)
+    """A function that returns fresh pretrained weights of `arm` on each call.
+
+    Weights are always float32. Without `dtype`, transformers loads the checkpoint's
+    own dtype: gte-modernbert-base is stored in float16, and AdamW on float16 weights
+    diverged to NaN in the E003 preflight. bf16 is applied only through autocast.
+    """
+    return lambda: AutoModel.from_pretrained(arm.name, revision=arm.revision, dtype=torch.float32)
 
 
 def tokenize(tokenizer: PreTrainedTokenizerBase, texts: Sequence[str], max_length: int) -> list:
@@ -130,7 +135,7 @@ def train_classifier(
     set_seed(config.seed)
     model = MeanPoolClassifier(make_backbone(), n_classes, config.dropout).to(device)
     ids = tokenize(tokenizer, texts, config.max_length)
-    y = torch.as_tensor(np.asarray(labels), dtype=torch.long)
+    y = torch.tensor(np.asarray(labels), dtype=torch.long)
 
     steps_per_epoch = -(-len(ids) // config.batch_size)
     total_steps = steps_per_epoch * config.epochs

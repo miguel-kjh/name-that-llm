@@ -12,9 +12,12 @@ transformers = pytest.importorskip("transformers")
 from tokenizers import Tokenizer, models, pre_tokenizers  # noqa: E402
 from transformers import ModernBertConfig, ModernBertModel, PreTrainedTokenizerFast  # noqa: E402
 
+import name_that_llm.encoder as encoder  # noqa: E402
 from name_that_llm.encoder import (  # noqa: E402
+    EncoderArm,
     EncoderConfig,
     MeanPoolClassifier,
+    backbone_factory,
     count_truncated,
     mean_pool,
     predict_proba,
@@ -119,3 +122,19 @@ def test_same_seed_same_history_other_seed_differs(tokenizer):
 def test_count_truncated(tokenizer):
     assert count_truncated(tokenizer, ["w1 w2 w3", "w1"], max_length=2) == 1
     assert count_truncated(tokenizer, ["w1 w2 w3", "w1"], max_length=3) == 0
+
+
+def test_backbone_factory_always_loads_float32_weights(monkeypatch):
+    # A float16 checkpoint (like gte-modernbert-base) must not be trained in float16.
+    calls = []
+
+    class FakeAutoModel:
+        @staticmethod
+        def from_pretrained(name, **kwargs):
+            calls.append((name, kwargs))
+            return "backbone"
+
+    monkeypatch.setattr(encoder, "AutoModel", FakeAutoModel)
+    make = backbone_factory(EncoderArm("org/model", "abc123"))
+    assert make() == "backbone"
+    assert calls == [("org/model", {"revision": "abc123", "dtype": torch.float32})]
