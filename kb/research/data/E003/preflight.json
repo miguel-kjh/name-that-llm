@@ -1,0 +1,36 @@
+{
+  "cuda": true,
+  "gpu": "NVIDIA GeForce RTX 4070 SUPER",
+  "folds_match_e002": {
+    "0": true,
+    "1": true,
+    "2": true
+  },
+  "arms": {
+    "A": {
+      "model": "answerdotai/ModernBERT-base",
+      "revision": "8949b909ec900327062f0ebf497f51aef5e6f0c8",
+      "weights_dtype": "torch.float32",
+      "n_truncated": 0,
+      "max_tokens": 396,
+      "memorize_train_accuracy": 1.0,
+      "memorize_loss": [
+        3.2218947410583496,
+        0.0006996353768045083
+      ]
+    },
+    "B": {
+      "model": "Alibaba-NLP/gte-modernbert-base",
+      "revision": "e7f32e3c00f91d699e8c43b53106206bcc72bb22",
+      "weights_dtype": "torch.float32",
+      "n_truncated": 0,
+      "max_tokens": 396,
+      "memorize_train_accuracy": 1.0,
+      "memorize_loss": [
+        3.1352882385253906,
+        0.0014386982074938715
+      ]
+    }
+  },
+  "passed": true
+}

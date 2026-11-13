@@ -1,0 +1,80 @@
+{
+  "experiment": "E003",
+  "hypotheses": [
+    "H003",
+    "H004"
+  ],
+  "issue": 5,
+  "data": {
+    "path": "data/train.csv",
+    "sha256": "40a22ce8d88c5f46feb4637a099db815bef5f713ffe53e89dbe1b7b21de77707",
+    "rows": 2699,
+    "prompts": 150,
+    "models": 18
+  },
+  "validation": {
+    "folds_csv": "kb/research/data/E002/folds.csv",
+    "n_splits": 5,
+    "search_seed": 0,
+    "eval_seeds": [
+      1,
+      2
+    ],
+    "control": {
+      "arm": "A",
+      "seed": 1
+    }
+  },
+  "arms": {
+    "A": {
+      "model": "answerdotai/ModernBERT-base",
+      "revision": "8949b909ec900327062f0ebf497f51aef5e6f0c8"
+    },
+    "B": {
+      "model": "Alibaba-NLP/gte-modernbert-base",
+      "revision": "e7f32e3c00f91d699e8c43b53106206bcc72bb22"
+    }
+  },
+  "recipe": {
+    "lr": 0.0,
+    "epochs": 0,
+    "batch_size": 16,
+    "max_length": 512,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "grad_clip": 1.0,
+    "dropout": 0.1,
+    "seed": 0,
+    "bf16": true,
+    "pooling": "masked mean",
+    "head": "dropout + linear",
+    "search_lrs": [
+      1e-05,
+      3e-05,
+      5e-05
+    ],
+    "search_epochs": [
+      4,
+      8
+    ]
+  },
+  "versions": {
+    "python": "3.12.3",
+    "torch": "2.11.0+cu128",
+    "transformers": "5.23.0",
+    "sklearn": "1.9.1",
+    "pandas": "3.1.1",
+    "numpy": "2.5.4"
+  },
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 4070 SUPER"
+  },
+  "phases": {
+    "preflight": {
+      "command": "python -m name_that_llm.experiments.run_encoder --phase preflight",
+      "code_revision": "8a40d4c73777bc502e189b9a3fd3f8cdc9c52374-dirty",
+      "finished_utc": "2026-11-13T22:33:59+00:00",
+      "runtime_seconds": 38.3
+    }
+  }
+}

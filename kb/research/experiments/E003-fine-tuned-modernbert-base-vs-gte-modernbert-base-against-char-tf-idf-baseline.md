@@ -29,13 +29,13 @@ Responder dos decisiones con un único conjunto de runs:
 
 ## Setup
 
-- **Environment:** `.venv` del proyecto (Python 3.12). Nuevo grupo de dependencias `gpu`
-  en `pyproject.toml` con `torch` (CUDA) y `transformers` (versión con soporte de
-  ModernBERT, ≥ 4.48). Sin `flash-attn` (opcional, no cambia resultados). Versiones exactas en
-  `manifest.json`.
-- **Code:** nuevo `src/name_that_llm/experiments/run_encoder.py` más un módulo
-  `src/name_that_llm/encoder.py` (dataset, modelo, bucle de entrenamiento). Reutiliza
-  `validation.py`, `metrics.py` y `labels.py` de E002.
+- **Environment:** `.venv` del proyecto (Python 3.12). Grupo de dependencias `gpu` en
+  `pyproject.toml`: `torch` 2.11.0+cu128 y `transformers` 5.23.0. Sin `flash-attn`. Versiones
+  exactas en `manifest.json`.
+- **Code:** `src/name_that_llm/encoder.py` (modelo y bucle de entrenamiento),
+  `src/name_that_llm/decisions.py` (reglas de decisión), `src/name_that_llm/experiments/run_encoder.py`
+  (fases). Reutiliza `validation.py`, `metrics.py` y `labels.py` de E002. Issue #5, rama
+  `e003-encoders`.
 - **Data:** `data/train.csv` completo (2.699 pasajes, 150 prompts, 18 modelos con 149–150
   pasajes cada uno; 36–274 palabras, mediana 101). Hash SHA-256 igual al de E002. Ningún
   pasaje tiene markdown, así que la señal de formato de [[L001]] no aplica aquí.
@@ -48,8 +48,11 @@ Responder dos decisiones con un único conjunto de runs:
   | A | `answerdotai/ModernBERT-base` | MLM |
   | B | `Alibaba-NLP/gte-modernbert-base` | ModernBERT-base + entrenamiento contrastivo |
 
-  Mismo tokenizador y misma arquitectura (149M). Se registra el commit de cada modelo en el
-  hub.
+  Mismo tokenizador (vocabulario idéntico, comprobado) y misma arquitectura (149M). Commits
+  fijados: A `8949b909ec900327062f0ebf497f51aef5e6f0c8`, B
+  `e7f32e3c00f91d699e8c43b53106206bcc72bb22`.
+  - Pesos siempre en float32 para los dos brazos; bf16 solo vía autocast. El checkpoint de B
+    está guardado en float16 y transformers 5 lo cargaba así por defecto (ver Progress).
 - **Receta común (fija para los dos brazos):**
   - Mean pooling sobre tokens no padding → dropout 0,1 → capa lineal 768 → 18. Fine-tuning
     completo, sin congelar capas.
@@ -76,8 +79,9 @@ Responder dos decisiones con un único conjunto de runs:
    - Los folds leídos de `folds.csv` coinciden con los de E002 (mismos ids por fold y semilla).
    - El mean pooling ignora el padding (mismo embedding con y sin padding extra).
    - Porcentaje de pasajes truncados a 512 tokens = 0 con el tokenizador de ModernBERT.
-   - Prueba de sobreajuste: entrenar con 64 pasajes llega a ≥ 95 % de accuracy en esos mismos
-     64. Si no, hay un fallo de implementación y no se sigue.
+   - Prueba de sobreajuste: entrenar con 64 pasajes (lr 5e-5, 30 épocas) llega a ≥ 95 % de
+     accuracy en esos mismos 64. Si no, hay un fallo de implementación y no se sigue.
+   - Los pesos de los dos brazos se cargan en float32.
 2. **Fase de búsqueda (semilla 0):**
    `python -m name_that_llm.experiments.run_encoder --phase search --arm {A,B}`
    - 2 brazos × 6 configuraciones × 5 folds = 60 runs.
@@ -118,9 +122,11 @@ Métrica principal: balanced accuracy OOF por modelo, media de las semillas 1 y 
 
 - Control con etiquetas barajadas: balanced accuracy ≤ 0,08 (azar 0,056).
 - Sin pasajes truncados.
-- Estabilidad: en cada run la pérdida de train baja al menos un 50 % respecto a la inicial,
-  y ningún run de la fase de decisión queda por debajo de 0,10. Un run que no cumple se
-  investiga como fallo de implementación, no cuenta como resultado.
+- Estabilidad: en cada run de la fase de decisión la pérdida de train baja al menos un 50 %
+  respecto a la inicial y la balanced accuracy no queda por debajo de 0,10. Un run que no
+  cumple se investiga como fallo de implementación, no cuenta como resultado. En la fase de
+  búsqueda la estabilidad se registra pero no invalida: una configuración que no entrena bien
+  (p. ej. lr 1e-5 con 4 épocas) simplemente no se elige.
 - Inferencia de 4.000 pasajes en la GPU local < 10 min, para que quepa holgada en Kaggle
   (GPU más lenta, límite de 9 h) incluso si se entrena dentro del notebook.
 
@@ -136,15 +142,25 @@ Métrica principal: balanced accuracy OOF por modelo, media de las semillas 1 y 
 
 - Si tras la fase de búsqueda el mejor brazo no llega a 0,20 en la semilla 0, parar y revisar
   la implementación antes de gastar la fase de decisión.
-- Presupuesto: 81 runs (60 + 20 + 1 de control con 5 folds). Si el tiempo real supera 3× la
+- Presupuesto: 85 runs de un fold (60 de búsqueda + 20 de decisión + 5 de control). Si el tiempo real supera 3× la
   estimación, parar y replantear la rejilla.
 
 ## Progress
 
 - [x] (`2026-11-13`) Diseño del experimento. La rejilla de [[H003]] se amplía con épocas
   {4, 8} antes de ejecutar nada.
-- [ ] Dependencias `gpu` y descarga de modelos.
-- [ ] Tests y comprobaciones previas (paso 1).
+- [x] (`2026-11-13`) Dependencias `gpu` y descarga de modelos con commits fijados.
+- [x] (`2026-11-13`) Implementación y tests: 82 pasan (44 nuevos), en CPU y sin descargas.
+- [x] (`2026-11-13`) Precisiones antes de ejecutar la búsqueda: la estabilidad decide solo
+  sobre los runs de la fase de decisión; las predicciones OOF se guardan por run en `oof/`;
+  una matriz de confusión por brazo.
+- [x] (`2026-11-13`) Primer preflight **fallido**: B daba pérdida NaN. Causa: transformers 5
+  carga el dtype del checkpoint, B está en float16 y AdamW sobre pesos float16 diverge. A
+  estaba en float32, así que además había una diferencia de precisión entre brazos. Arreglo:
+  `dtype=torch.float32` al cargar, test unitario y comprobación de dtype en el preflight.
+- [x] (`2026-11-13`) Preflight **superado** (`preflight.json`): folds idénticos a E002 en las 3
+  semillas; 0 pasajes truncados (máximo 396 tokens); pesos float32; los dos brazos memorizan
+  los 64 pasajes (100 %; pérdida A 3,22 → 0,0007, B 3,14 → 0,0014).
 - [ ] Fase de búsqueda (semilla 0).
 - [ ] Fase de decisión (semillas 1 y 2).
 - [ ] Control con etiquetas barajadas y guardarraíl de inferencia.
@@ -159,8 +175,10 @@ Datos en bruto previstos en `kb/research/data/E003/`:
 - `search.csv`: una fila por brazo × configuración × fold (semilla 0).
 - `runs.csv`: una fila por brazo × semilla × fold de la fase de decisión, con balanced accuracy,
   métricas secundarias, pérdida inicial y final, y tiempo.
-- `oof_probs.parquet`: probabilidades OOF por brazo y semilla (18 columnas).
-- `per_class_recall.csv`, `confusion.csv`, `length_buckets.csv`: igual que en E002.
+- `preflight.json`, `timing.json`: comprobaciones previas y guardarraíl de inferencia.
+- `oof/`: un parquet por run con las probabilidades OOF (18 columnas) y la predicción.
+- `per_class_recall.csv`, `length_buckets.csv` (con columna de brazo) y
+  `confusion_A.csv`, `confusion_B.csv`.
 - `summary.json`: métricas principales, deltas frente al baseline, guardarraíles y estado de
   decisión de H003 y H004.
 
