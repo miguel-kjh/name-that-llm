@@ -53,7 +53,7 @@ mismo backbone, y orienta qué familia de modelos escalar después.
 
 ## Test Plan
 
-- Experiment(s): por crear (E003, compartido con [[H003]]).
+- Experiment(s): [[E003]] (compartido con [[H003]]).
 - Brazos, datos, folds, rejilla de lr, semillas, receta y guardarraíles: los de [[H003]].
 - Métrica principal: diferencia de balanced accuracy A − B (media de las semillas 1 y 2) y
   número de folds (de 10) en los que gana cada brazo.
@@ -85,3 +85,4 @@ Pendiente de E003.
 - Active State: [[ACTIVE]]
 - Literature: [[L001]]
 - Related hypothesis: [[H003]]
+- Experiment: [[E003]]

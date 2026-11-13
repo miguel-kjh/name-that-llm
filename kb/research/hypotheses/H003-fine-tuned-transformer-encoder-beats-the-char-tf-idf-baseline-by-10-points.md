@@ -51,14 +51,14 @@ generalización a prompts nuevos que exige el test oculto.
 
 ## Test Plan
 
-- Experiment(s): por crear (E003, compartido con [[H004]]).
+- Experiment(s): [[E003]] (compartido con [[H004]]).
 - Datos: `data/train.csv` completo; folds fijos de `kb/research/data/E002/folds.csv`.
 - Brazos: A = `answerdotai/ModernBERT-base`, B = `Alibaba-NLP/gte-modernbert-base`. Ambos con
   fine-tuning completo.
 - Variables controladas: mean pooling + cabeza lineal, máximo 512 tokens, mismas épocas,
   scheduler, batch y semillas en los dos brazos.
-- Ajuste: rejilla de learning rate {1e-5, 3e-5, 5e-5} elegida por brazo con la semilla de
-  folds 0; decisión con las semillas 1 y 2 (la semilla 0 se informa aparte).
+- Ajuste: rejilla de learning rate {1e-5, 3e-5, 5e-5} × épocas {4, 8} (las épocas se
+  añadieron al diseñar [[E003]], antes de ejecutar) elegida por brazo con la semilla de folds 0; decisión con las semillas 1 y 2 (la semilla 0 se informa aparte).
 - Métrica principal: balanced accuracy OOF por modelo (media de semillas).
 - Secundarias: balanced accuracy por laboratorio, proporción de errores dentro del
   laboratorio (comparable con [[F002]]), recall por clase y por tramo de longitud.
@@ -66,7 +66,7 @@ generalización a prompts nuevos que exige el test oculto.
   que quepa holgada en el límite de Kaggle (9 h, sin internet).
 - Validez: si algún run colapsa (accuracy cerca del azar o la pérdida no baja), se clasifica
   como fallo de implementación o señal insuficiente, no como rechazo.
-- Presupuesto: 2 brazos × 3 lr × 5 folds para elegir lr, más 2 brazos × 2 semillas × 5 folds
+- Presupuesto: 2 brazos × 6 configuraciones × 5 folds para elegir la configuración, más 2 brazos × 2 semillas × 5 folds
   para decidir. GPU local (RTX 4070 SUPER, 12 GB).
 - Confirm if: `python -m name_that_llm.experiments.run_encoder` -> el mejor brazo logra balanced accuracy ≥ 0,412 (media de las semillas 1 y 2)
 - Reject if: `python -m name_that_llm.experiments.run_encoder` -> los dos brazos < 0,362 con entrenamiento estable y la rejilla de lr completa
@@ -95,3 +95,4 @@ Pendiente de E003.
 - Literature: [[L001]]
 - Prior findings: [[F001]], [[F002]]
 - Related hypothesis: [[H004]]
+- Experiment: [[E003]]

@@ -14,7 +14,7 @@ correlación con el leaderboard se comprobará con los primeros envíos de model
 
 ## Next Step
 
-Diseñar E003 (compartido por [[H003]] y [[H004]]): fine-tuning completo de
+Implementar y ejecutar [[E003]] (compartido por [[H003]] y [[H004]]): fine-tuning completo de
 `ModernBERT-base` y `gte-modernbert-base` con mean pooling + cabeza lineal, mismos folds de
 E002, rejilla de lr con la semilla 0 y decisión con las semillas 1 y 2. Objetivo: ≥ 0,412.
 

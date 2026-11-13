@@ -1,0 +1,184 @@
+---
+id: "E003"
+aliases: ["E003"]
+type: experiment
+status: DESIGNED
+hypothesis: "H003"
+created: "2026-11-13"
+completed: ""
+tags: [encoder, embeddings, fine-tuning]
+---
+
+# E003 — Fine-tuned ModernBERT-base vs gte-modernbert-base against char TF-IDF baseline
+
+> **Status**: DESIGNED
+> **Hypothesis**: [[H003]] (principal), [[H004]] (comparación entre brazos)
+> **Created**: 2026-11-13
+> **Completed**:
+
+## Objective
+
+Responder dos decisiones con un único conjunto de runs:
+
+1. **[[H003]]:** ¿un encoder fine-tuneado con la receta de [[L001]] llega a ≥ 0,412 de balanced
+   accuracy (baseline 0,312, [[F002]]) con GroupKFold por `prompt_id`? Si sí, pasa a ser el
+   modelo principal en lugar del TF-IDF.
+2. **[[H004]]:** con el mismo backbone, ¿el encoder MLM (`ModernBERT-base`) supera a su versión
+   con entrenamiento contrastivo (`gte-modernbert-base`) en ≥ 0,02 y en ≥ 8 de 10 folds? Decide
+   qué familia de modelos escalar después.
+
+## Setup
+
+- **Environment:** `.venv` del proyecto (Python 3.12). Nuevo grupo de dependencias `gpu`
+  en `pyproject.toml` con `torch` (CUDA) y `transformers` (versión con soporte de
+  ModernBERT, ≥ 4.48). Sin `flash-attn` (opcional, no cambia resultados). Versiones exactas en
+  `manifest.json`.
+- **Code:** nuevo `src/name_that_llm/experiments/run_encoder.py` más un módulo
+  `src/name_that_llm/encoder.py` (dataset, modelo, bucle de entrenamiento). Reutiliza
+  `validation.py`, `metrics.py` y `labels.py` de E002.
+- **Data:** `data/train.csv` completo (2.699 pasajes, 150 prompts, 18 modelos con 149–150
+  pasajes cada uno; 36–274 palabras, mediana 101). Hash SHA-256 igual al de E002. Ningún
+  pasaje tiene markdown, así que la señal de formato de [[L001]] no aplica aquí.
+- **Validation:** los folds fijos de `kb/research/data/E002/folds.csv` (semillas 0, 1 y 2;
+  5 folds por semilla). Se leen del archivo, no se regeneran.
+- **Brazos:**
+
+  | Brazo | Modelo (Hugging Face) | Preentrenamiento |
+  |---|---|---|
+  | A | `answerdotai/ModernBERT-base` | MLM |
+  | B | `Alibaba-NLP/gte-modernbert-base` | ModernBERT-base + entrenamiento contrastivo |
+
+  Mismo tokenizador y misma arquitectura (149M). Se registra el commit de cada modelo en el
+  hub.
+- **Receta común (fija para los dos brazos):**
+  - Mean pooling sobre tokens no padding → dropout 0,1 → capa lineal 768 → 18. Fine-tuning
+    completo, sin congelar capas.
+  - Texto crudo, sin normalizar (sin minúsculas, sin limpiar puntuación). Máximo 512 tokens
+    con truncado; se espera 0 % de pasajes truncados (≤ 274 palabras).
+  - AdamW, weight decay 0,01, batch 16, warmup lineal 10 % + decaimiento lineal, gradient
+    clip 1,0, bf16, cross-entropy sin pesos de clase (las clases están balanceadas).
+  - Sin early stopping con el fold de validación: el número de épocas es un hiperparámetro
+    fijado en la fase de búsqueda.
+- **Rejilla de búsqueda (por brazo):** lr {1e-5, 3e-5, 5e-5} × épocas {4, 8}. Amplía la rejilla
+  de lr de [[H003]] con el número de épocas, porque sin early stopping hay que fijarlo de
+  antemano; se decide antes de ejecutar nada.
+- **Seeds:** la semilla de folds `s` se usa también como semilla de entrenamiento (`torch`,
+  `numpy`, `random`, inicialización de la cabeza, orden de los batches).
+- **Comparator:** E002 (TF-IDF de caracteres + LR), mismos folds. Valores por semilla en
+  `kb/research/data/E002/summary.json`: 0,322 / 0,310 / 0,304 (media de las semillas 1 y 2:
+  0,307).
+- **Compute:** GPU local NVIDIA RTX 4070 SUPER (12 GB). Estimación: 1–3 min por run.
+
+## Procedure
+
+0. **Preparación.** Añadir el grupo `gpu` y descargar los dos modelos a la caché local.
+1. **Tests y comprobaciones previas** (`python -m pytest tests`):
+   - Los folds leídos de `folds.csv` coinciden con los de E002 (mismos ids por fold y semilla).
+   - El mean pooling ignora el padding (mismo embedding con y sin padding extra).
+   - Porcentaje de pasajes truncados a 512 tokens = 0 con el tokenizador de ModernBERT.
+   - Prueba de sobreajuste: entrenar con 64 pasajes llega a ≥ 95 % de accuracy en esos mismos
+     64. Si no, hay un fallo de implementación y no se sigue.
+2. **Fase de búsqueda (semilla 0):**
+   `python -m name_that_llm.experiments.run_encoder --phase search --arm {A,B}`
+   - 2 brazos × 6 configuraciones × 5 folds = 60 runs.
+   - Se elige por brazo la configuración con mayor balanced accuracy OOF de la semilla 0.
+     Empates (< 0,005): la de menos épocas y luego la de menor lr.
+3. **Fase de decisión (semillas 1 y 2):**
+   `python -m name_that_llm.experiments.run_encoder --phase eval --arm {A,B}`
+   - Configuración elegida por brazo; 2 brazos × 2 semillas × 5 folds = 20 runs.
+   - Se guardan las probabilidades OOF (para ensembles futuros) y las métricas por fold.
+4. **Control con etiquetas barajadas:**
+   `python -m name_that_llm.experiments.run_encoder --phase control --arm A`
+   - Brazo A, configuración elegida, semilla de folds 1, etiquetas barajadas dentro del
+     train de cada fold.
+5. **Guardarraíl de inferencia:** medir el tiempo de predecir 4.000 pasajes (los de train
+   repetidos hasta 4.000) con el mejor brazo en la GPU local, incluida la carga del modelo.
+6. **Resumen:** `python -m name_that_llm.experiments.run_encoder --phase summarize` escribe
+   `summary.json` con las reglas de decisión aplicadas.
+
+## Expected Outcome
+
+Métrica principal: balanced accuracy OOF por modelo, media de las semillas 1 y 2.
+
+**[[H003]] (umbrales fijados antes de ejecutar):**
+
+- Confirm if: `python -m name_that_llm.experiments.run_encoder --phase summarize` -> el mejor brazo logra balanced accuracy ≥ 0,412
+- Reject if: `python -m name_that_llm.experiments.run_encoder --phase summarize` -> los dos brazos < 0,362, con entrenamiento estable y la rejilla completa
+- Inconclusive if: el mejor brazo queda entre 0,362 y 0,412, o hay runs inestables sin
+  explicar.
+
+**[[H004]] (A − B en los 10 folds de las semillas 1 y 2):**
+
+- Confirm if: `python -m name_that_llm.experiments.run_encoder --phase summarize` -> A − B ≥ 0,02 y A gana en ≥ 8 de 10 folds
+- Reject if: `python -m name_that_llm.experiments.run_encoder --phase summarize` -> B − A ≥ 0,02 y B gana en ≥ 8 de 10 folds
+- Inconclusive if: |A − B| < 0,02 o ningún brazo gana en ≥ 8 folds; también si algún brazo
+  no supera al baseline (0,312). En empate se sigue con A.
+
+**Guardarraíles (si alguno falla, el experimento no es válido):**
+
+- Control con etiquetas barajadas: balanced accuracy ≤ 0,08 (azar 0,056).
+- Sin pasajes truncados.
+- Estabilidad: en cada run la pérdida de train baja al menos un 50 % respecto a la inicial,
+  y ningún run de la fase de decisión queda por debajo de 0,10. Un run que no cumple se
+  investiga como fallo de implementación, no cuenta como resultado.
+- Inferencia de 4.000 pasajes en la GPU local < 10 min, para que quepa holgada en Kaggle
+  (GPU más lenta, límite de 9 h) incluso si se entrena dentro del notebook.
+
+**Métricas secundarias** (no deciden, explican):
+
+- Balanced accuracy por laboratorio.
+- Proporción de errores dentro del laboratorio (comparable con 0,518 de [[F002]]).
+- Recall por clase y matriz de confusión.
+- Balanced accuracy por tramo de longitud (< 80, 80–149, 150+ palabras), como en E002.
+- Delta por fold frente al baseline en los mismos folds.
+
+**Reglas de parada:**
+
+- Si tras la fase de búsqueda el mejor brazo no llega a 0,20 en la semilla 0, parar y revisar
+  la implementación antes de gastar la fase de decisión.
+- Presupuesto: 81 runs (60 + 20 + 1 de control con 5 folds). Si el tiempo real supera 3× la
+  estimación, parar y replantear la rejilla.
+
+## Progress
+
+- [x] (`2026-11-13`) Diseño del experimento. La rejilla de [[H003]] se amplía con épocas
+  {4, 8} antes de ejecutar nada.
+- [ ] Dependencias `gpu` y descarga de modelos.
+- [ ] Tests y comprobaciones previas (paso 1).
+- [ ] Fase de búsqueda (semilla 0).
+- [ ] Fase de decisión (semillas 1 y 2).
+- [ ] Control con etiquetas barajadas y guardarraíl de inferencia.
+- [ ] Resumen, análisis y finding.
+
+## Results
+
+Datos en bruto previstos en `kb/research/data/E003/`:
+
+- `manifest.json`: commit del código, hash de los datos, versiones, commits de los modelos en
+  el hub, GPU, configuración elegida por brazo.
+- `search.csv`: una fila por brazo × configuración × fold (semilla 0).
+- `runs.csv`: una fila por brazo × semilla × fold de la fase de decisión, con balanced accuracy,
+  métricas secundarias, pérdida inicial y final, y tiempo.
+- `oof_probs.parquet`: probabilidades OOF por brazo y semilla (18 columnas).
+- `per_class_recall.csv`, `confusion.csv`, `length_buckets.csv`: igual que en E002.
+- `summary.json`: métricas principales, deltas frente al baseline, guardarraíles y estado de
+  decisión de H003 y H004.
+
+Los checkpoints de los modelos no se guardan en `kb/` (pesan ~600 MB cada uno).
+
+## Analysis
+
+_Pendiente._
+
+## Decision
+
+_Pendiente._
+
+## Links
+
+- Mission: [[CHALLENGE]]
+- Active State: [[ACTIVE]]
+- Parent Hypothesis: [[H003]]
+- Related hypothesis: [[H004]]
+- Comparator: [[E002]]
+- Literature: [[L001]]
