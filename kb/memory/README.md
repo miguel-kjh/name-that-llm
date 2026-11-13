@@ -25,4 +25,4 @@ Cada entrada es un archivo propio en `kb/memory/`, con un nombre corto en kebab-
 
 ## Índice
 
-_Todavía no hay entradas._
+- [El código del proyecto no va en `scripts/`](project-code-not-in-scripts.md) — `scripts/` es de Limina; el código va en `src/name_that_llm/` y los experimentos en `src/name_that_llm/experiments/`.

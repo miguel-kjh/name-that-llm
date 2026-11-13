@@ -1,7 +1,7 @@
 """Length EDA (issue #1): length by model/lab and within-prompt comparison.
 
 Usage:
-    uv run python scripts/eda_length.py [--data-dir data] [--out-dir kb/research/data/eda_length]
+    python -m name_that_llm.experiments.eda_length [--data-dir data] [--out-dir kb/research/data/eda_length]
 
 Writes CSV tables and PNG figures to --out-dir and prints the headline numbers.
 """

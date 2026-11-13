@@ -52,8 +52,8 @@ misma en el test oculto.
   accuracy por tramo de longitud.
 - Guardarraíl: el control con etiquetas barajadas debe dar un balanced accuracy ≤ 8 %
   (azar: 5,6 %). Si no, el experimento no es válido.
-- Confirm if: `uv run python scripts/run_baseline.py` -> proporción dentro del laboratorio > 0,50
-- Reject if: `uv run python scripts/run_baseline.py` -> proporción dentro del laboratorio < 0,35
+- Confirm if: `python -m name_that_llm.experiments.run_baseline` -> proporción dentro del laboratorio > 0,50
+- Reject if: `python -m name_that_llm.experiments.run_baseline` -> proporción dentro del laboratorio < 0,35
 - Inconclusive if: entre 0,35 y 0,50, o menos de 100 errores en total.
 
 ## Evidence

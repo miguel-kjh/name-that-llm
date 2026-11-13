@@ -31,20 +31,20 @@ del baseline de la misión, y decidir si sus errores se concentran dentro de cad
 - Model: TfidfVectorizer (`char_wb`, n-gramas 1–5, sublinear_tf, min_df=2, sin pasar a
   minúsculas) + LogisticRegression (C=10, max_iter=2000). Configuración fija, sin ajustar.
 - Compute: CPU, unos 4 minutos en total.
-- Code: `src/name_that_llm/{validation,metrics,baseline,labels}.py`, `scripts/run_baseline.py`.
+- Code: `src/name_that_llm/{validation,metrics,baseline,labels}.py`, `src/name_that_llm/experiments/run_baseline.py`.
 
 ## Procedure
 
 1. `source .venv/bin/activate && python -m pytest tests` (38 tests de folds, métricas y
    pipeline).
-2. `python scripts/run_baseline.py`: por cada semilla, predicciones out-of-fold con un modelo
+2. `python -m name_that_llm.experiments.run_baseline`: por cada semilla, predicciones out-of-fold con un modelo
    nuevo por fold; después, control con etiquetas barajadas (semilla de folds 0).
 
 ## Expected Outcome
 
-- Confirm if: `python scripts/run_baseline.py` -> proporción de errores dentro del
+- Confirm if: `python -m name_that_llm.experiments.run_baseline` -> proporción de errores dentro del
   laboratorio > 0,50
-- Reject if: `python scripts/run_baseline.py` -> proporción < 0,35
+- Reject if: `python -m name_that_llm.experiments.run_baseline` -> proporción < 0,35
 - Inconclusive if: entre 0,35 y 0,50, o menos de 100 errores.
 - Guardarraíl: el control con etiquetas barajadas debe dar un balanced accuracy ≤ 8 %.
 
@@ -52,6 +52,12 @@ del baseline de la misión, y decidir si sus errores se concentran dentro de cad
 
 - [x] (`2026-11-13`) Tests de folds, métricas y pipeline: 38 pasan.
 - [x] (`2026-11-13`) Ejecución con 3 semillas y control con etiquetas barajadas.
+- [x] (`2026-11-13`) El script se movió de `scripts/run_baseline.py` a
+  `src/name_that_llm/experiments/run_baseline.py` (`scripts/` es de Limina). Se volvió a
+  ejecutar desde la nueva ubicación: todos los CSV y el `summary.json` salen idénticos byte a
+  byte. El `manifest.json` guardado es el de la ejecución original, así que su `command` aún
+  muestra la ruta antigua y su `code_revision` lleva `-dirty` (se ejecutó antes del commit
+  `27e800e`, con el mismo código).
 
 ## Results
 

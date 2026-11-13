@@ -1,7 +1,7 @@
 """Baseline with prompt-grouped CV (issue #3, experiment E002).
 
 Usage:
-    uv run python scripts/run_baseline.py [--data-dir data] [--out-dir kb/research/data/E002]
+    python -m name_that_llm.experiments.run_baseline [--data-dir data] [--out-dir kb/research/data/E002]
                                           [--seeds 0 1 2] [--n-splits 5]
 
 For each fold seed, trains the fixed baseline on 4 folds and predicts the 5th.
@@ -124,7 +124,10 @@ def main() -> None:
         "experiment": "E002",
         "issue": 3,
         "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "command": " ".join([Path(sys.argv[0]).as_posix(), *sys.argv[1:]]),
+        # Module name, not sys.argv[0]: under `-m` that is an absolute local path.
+        "command": " ".join(
+            ["python -m", __spec__.name if __spec__ else Path(sys.argv[0]).stem, *sys.argv[1:]]
+        ),
         "code_revision": git_revision(),
         "data": {"path": train_path.as_posix(), "sha256": sha256(train_path),
                  "rows": len(train), "prompts": int(train.prompt_id.nunique()),

@@ -27,7 +27,7 @@ None.
 - [[H001]] → [[E001]] → [[F001]]: la longitud no identifica al modelo; la longitud de frase
   quizá sí.
 - Código: `src/name_that_llm/{validation,metrics,baseline,labels}.py`,
-  `scripts/run_baseline.py`.
+  `src/name_that_llm/experiments/run_baseline.py`.
 - Primary skill de la fase: `$experiment-rigor` (protocolo y baseline).
 
 ## Links
