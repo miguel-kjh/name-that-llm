@@ -273,7 +273,7 @@ checkpoints/
 wandb/
 
 # Datos de la competición (no se suben a git)
-data/
+/data/
 submission.parquet
 
 # PAPERS
