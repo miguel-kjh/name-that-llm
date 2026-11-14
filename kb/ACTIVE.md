@@ -18,7 +18,7 @@ con el leaderboard se comprobará con los primeros envíos de modelos candidatos
 [[H004]] rechazada (gte supera a ModernBERT MLM en 10/10 folds, [[F004]]). Decidir con el
 usuario la siguiente hipótesis. Propuesta: ensemble TF-IDF + gte con las probabilidades OOF ya
 guardadas (sin GPU), y después escalar a un encoder de embeddings más grande o atacar la
-confusión dentro del laboratorio. Falta abrir el PR de `e003-encoders` a `main` (issue #5).
+confusión dentro del laboratorio. PR #6 abierto de `e003-encoders` a `main` (cierra el issue #5).
 
 ## Blocker
 
