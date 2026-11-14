@@ -151,7 +151,7 @@ def run_fold(
         train.text[~is_val].tolist(), y_train[~is_val], len(classes), cfg,
         tokenizer, backbone_factory(arm), device(),
         on_epoch_end=score if every_epoch else None,
-        pooling=arm.pooling, text_format=arm.text_format,
+        pooling=arm.pooling, text_format=arm.text_format, normalize=arm.normalize,
     )
     if not every_epoch:
         score(cfg.epochs, model)

@@ -51,7 +51,9 @@ Responder con un único conjunto de runs:
   - G se carga sin los codificadores de visión y audio (`vision_config=None`,
     `audio_config=None`).
 - **Receta común (fija para todos los brazos):**
-  - Pooling nativo de cada modelo → dropout 0,1 → capa lineal → 18 clases.
+  - Pooling nativo de cada modelo → normalización L2 reescalada a norma √d → dropout 0,1 →
+    capa lineal → 18 clases. La normalización se añadió tras el smoke test (decisión del
+    usuario, 2026-11-14; ver Progress).
   - LoRA r = 16, α = 32, dropout 0,05, en todas las capas lineales del backbone (atención y
     MLP); backbone congelado; cabeza lineal entrenada entera.
   - Prompt nativo de clasificación, igual en train y validación:
@@ -59,8 +61,8 @@ Responder con un único conjunto de runs:
     - Q*: `Instruct: Identify which language model wrote this passage\nQuery:{texto}`.
   - Texto crudo, sin normalizar. Máximo 512 tokens con truncado; se espera 0 % truncados.
   - Pesos base en bf16; parámetros LoRA y cabeza en float32; autocast bf16.
-  - Q8 en bf16 con gradient checkpointing. Solo si no cabe en 24 GB: QLoRA (NF4, cómputo
-    bf16), y se anota como desviación.
+  - Q4 y Q8 en bf16 con gradient checkpointing. Q8 cabe en 24 GB (medido), así que no se
+    usa QLoRA.
   - AdamW, weight decay 0,01, batch efectivo 16 (acumulación de gradiente si la memoria no
     da), warmup lineal 10 % + decaimiento lineal, gradient clip 1,0, cross-entropy sin pesos.
   - Calendario de 6 épocas en todos los runs; se evalúa el fold de validación al final de
@@ -182,6 +184,22 @@ Métrica principal: balanced accuracy OOF por brazo, media de las semillas 1 y 2
     de ~0,02 por fold, mayor que la diferencia con la referencia. La refactorización no
     cambia el comportamiento. Consecuencia para el análisis: diferencias por fold < 0,02
     entre brazos son ruido; las decisiones usan medias de 10 folds.
+- [x] (`2026-11-14`) Smoke test de todas las fases con G y Q0 (30 prompts, fold 0, en el
+  scratchpad; métricas sin significado). Todas corren. La fase de timing falló una vez con
+  `CUDA error: device not ready` y al repetirla funcionó (transitorio, WSL); el lanzador
+  reintenta cada fase hasta 3 veces (el runner es reanudable).
+- [x] (`2026-11-14`) **Cambio de receta tras el smoke, antes de cualquier run real:** la
+  pérdida inicial de G era 17–20 (azar ln 18 = 2,89) porque su embedding proyectado tiene una
+  norma muy grande. El usuario eligió normalizar el embedding (L2), como hacen los pipelines
+  nativos de los dos modelos. Con norma 1 los logits quedan acotados por la norma de la cabeza:
+  memorizando 64 pasajes la pérdida se quedaba en 2,2–2,5 tras 30 épocas (aunque con 100 % de
+  acierto) y habría fallado el guardarraíl de estabilidad. Se reescala a norma √d (RMS 1 por
+  dimensión, la escala de una salida de LayerNorm): pérdida inicial 3,0 (Q0) y 3,2 (G), y con
+  lr 1e-4 baja a 0,004 en 30 épocas. Se aplica a los cuatro brazos.
+- [x] (`2026-11-14`) Memoria en el peor caso (los 16 pasajes más largos), bf16 + gradient
+  checkpointing: Q4 con micro-batch 16, pico 11,5 GB; Q8 con micro-batch 4, pico 16,9 GB al
+  entrenar y 17,5 GB al predecir (de 24 GB). **Q8 cabe en bf16; no hace falta QLoRA.**
+  Micro-batches finales: G 16, Q0 16, Q4 16, Q8 4 (batch efectivo 16 en todos).
 - [ ] Preflight y piloto de tiempo y memoria.
 - [ ] Búsqueda (semilla 0).
 - [ ] Decisión (semillas 1 y 2).

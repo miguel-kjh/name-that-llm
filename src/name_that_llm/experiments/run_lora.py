@@ -89,17 +89,20 @@ QWEN_FORMAT = TextFormat(
     prompt="Instruct: Identify which language model wrote this passage\nQuery:",
     end_token="<|endoftext|>")
 
+# Every arm: LoRA on a frozen bf16 base, native pooling, L2-normalized embedding
+# (as both models' sentence-transformers pipelines do), native task prompt.
+_COMMON = {"normalize": True, "dtype": torch.bfloat16, "lora": LORA}
 ARMS = {
     "G": EncoderArm("google/embeddinggemma-2", "f9972ac22e696a105c482202646979e33e4b5a1e",
-                    pooling="mean", text_format=GEMMA_FORMAT, dtype=torch.bfloat16, lora=LORA,
+                    pooling="mean", text_format=GEMMA_FORMAT, **_COMMON,
                     load_kwargs={"vision_config": None, "audio_config": None}),
     "Q0": EncoderArm("Qwen/Qwen3-Embedding-0.6B", "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
-                     pooling="last", text_format=QWEN_FORMAT, dtype=torch.bfloat16, lora=LORA),
+                     pooling="last", text_format=QWEN_FORMAT, **_COMMON),
     "Q4": EncoderArm("Qwen/Qwen3-Embedding-4B", "5cf2132abc99cad020ac570b19d031efec650f2b",
-                     pooling="last", text_format=QWEN_FORMAT, dtype=torch.bfloat16, lora=LORA,
+                     pooling="last", text_format=QWEN_FORMAT, **_COMMON,
                      gradient_checkpointing=True),
     "Q8": EncoderArm("Qwen/Qwen3-Embedding-8B", "1d8ad4ca9b3dd8059ad90a75d4983776a23d44af",
-                     pooling="last", text_format=QWEN_FORMAT, dtype=torch.bfloat16, lora=LORA,
+                     pooling="last", text_format=QWEN_FORMAT, **_COMMON,
                      gradient_checkpointing=True),
 }
 ARM_ORDER = ("G", "Q0", "Q4", "Q8")  # Q4 and Q8 need Q0's search first
@@ -108,7 +111,7 @@ LR_SEARCH_ARMS = ("G", "Q0")
 LR_SOURCE = {"Q4": "Q0", "Q8": "Q0"}  # reduced protocol: inherit Q0's chosen lr
 
 # Effective batch is always 16; these only split it to fit in memory (set by the pilot).
-MICRO_BATCH = {"G": 16, "Q0": 16, "Q4": 8, "Q8": 4}
+MICRO_BATCH = {"G": 16, "Q0": 16, "Q4": 16, "Q8": 4}
 PREDICT_BATCH = {"G": 64, "Q0": 64, "Q4": 32, "Q8": 16}
 
 SEARCH_LRS = (1e-4, 3e-4)
@@ -257,7 +260,8 @@ def phase_preflight(train, folds_csv, classes, args) -> None:
         cfg = replace(base_config(arm), **PREFLIGHT_CONFIG, schedule_epochs=None, seed=0)
         model, history = train_classifier(sample.text.tolist(), y, len(classes), cfg, tokenizer,
                                           backbone_factory(spec), device(),
-                                          pooling=spec.pooling, text_format=spec.text_format)
+                                          pooling=spec.pooling, text_format=spec.text_format,
+                                          normalize=spec.normalize)
         preds = predict_proba(model, tokenizer, sample.text.tolist(), MAX_LENGTH,
                               batch_size=PREDICT_BATCH[arm], device=device()).argmax(1)
         del model
@@ -306,7 +310,8 @@ def phase_pilot(train, folds_csv, classes, args) -> None:
         cfg = replace(base_config(arm), lr=SEARCH_LRS[0], epochs=1, seed=SEARCH_SEED)
         model, history = train_classifier(train.text[~is_val].tolist(), y[~is_val],
                                           len(classes), cfg, tokenizer, timed_make, device(),
-                                          pooling=spec.pooling, text_format=spec.text_format)
+                                          pooling=spec.pooling, text_format=spec.text_format,
+                                          normalize=spec.normalize)
         torch.cuda.synchronize()
         train_s = time.perf_counter() - t0 - loaded["seconds"]
         t1 = time.perf_counter()
@@ -390,7 +395,8 @@ def phase_timing(train, folds_csv, classes, args) -> None:
         t0 = time.perf_counter()
         tokenizer = load_tokenizer(spec)
         model = PooledClassifier(backbone_factory(spec)(), len(classes), pooling=spec.pooling,
-                                 text_format=spec.text_format).to(device())
+                                 text_format=spec.text_format,
+                                 normalize=spec.normalize).to(device())
         predict_proba(model, tokenizer, texts, MAX_LENGTH, batch_size=PREDICT_BATCH[arm],
                       device=device())
         torch.cuda.synchronize()
@@ -513,7 +519,7 @@ def update_manifest(args, train_path: Path, train: pd.DataFrame, seconds: float)
         "validation": {"folds_csv": args.folds_csv.as_posix(), "n_splits": N_SPLITS,
                        "search_seed": SEARCH_SEED, "eval_seeds": list(EVAL_SEEDS),
                        "control": {"arm": CONTROL_ARM, "seed": CONTROL_SEED}},
-        "arms": {k: {"model": v.name, "revision": v.revision, "pooling": v.pooling,
+        "arms": {k: {"model": v.name, "revision": v.revision, "pooling": v.pooling, "normalize": v.normalize,
                      "prompt": v.text_format.prompt, "end_token": v.text_format.end_token,
                      "dtype": str(v.dtype), "gradient_checkpointing": v.gradient_checkpointing,
                      "micro_batch_size": MICRO_BATCH[k], "load_kwargs": dict(v.load_kwargs)}

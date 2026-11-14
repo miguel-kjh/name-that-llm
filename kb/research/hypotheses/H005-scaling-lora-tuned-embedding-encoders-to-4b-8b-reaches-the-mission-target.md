@@ -67,7 +67,8 @@ basado en LLM, LLM2vec).
     familia del mismo tamaño que gte, no un modelo más grande.
   - `Qwen/Qwen3-Embedding-0.6B`, `-4B`, `-8B` (pooling por último token). Es la curva de
     escala: misma familia y receta, solo cambia el tamaño.
-- Receta común: LoRA r = 16, α = 32, dropout 0,05, en todas las capas lineales; cabeza
+- Receta común: LoRA r = 16, α = 32, dropout 0,05, en todas las capas lineales; embedding
+  normalizado (L2, reescalado a norma √d; añadido tras el smoke test de [[E004]]); cabeza
   lineal entrenada entera; prompt nativo de clasificación de cada modelo; máximo 512 tokens;
   bf16 (8B en bf16 con gradient checkpointing; QLoRA de 4 bits solo si no cabe en 24 GB).
 - Protocolo reducido (decidido con el usuario, 2026-11-14):

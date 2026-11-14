@@ -46,6 +46,8 @@ class EncoderArm:
     name: str
     revision: str  # pinned hub commit, for reproducibility
     pooling: str = "mean"  # "mean" or "last" (last real token)
+    # L2-normalize the pooled embedding (as embedding models do), rescaled to norm sqrt(dim)
+    normalize: bool = False
     text_format: TextFormat = TextFormat()
     dtype: torch.dtype = torch.float32  # weights as loaded; bf16 compute is via autocast
     lora: LoraSpec | None = None  # None: full fine-tuning
@@ -121,19 +123,27 @@ def output_size(config) -> int:
 
 class PooledClassifier(nn.Module):
     def __init__(self, backbone: nn.Module, n_classes: int, dropout: float = 0.1,
-                 pooling: str = "mean", text_format: TextFormat = TextFormat()):
+                 pooling: str = "mean", text_format: TextFormat = TextFormat(),
+                 normalize: bool = False):
         super().__init__()
         if pooling not in POOLING:
             raise ValueError(f"unknown pooling {pooling!r}")
         self.backbone = backbone
         self.pooling = pooling
+        self.normalize = normalize
         self.text_format = text_format
         self.dropout = nn.Dropout(dropout)
         self.head = nn.Linear(output_size(backbone.config), n_classes)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         hidden = self.backbone(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
-        return self.head(self.dropout(POOLING[self.pooling](hidden, attention_mask)))
+        pooled = POOLING[self.pooling](hidden, attention_mask)
+        if self.normalize:
+            # Direction only, at RMS 1 per dimension (the scale of a LayerNorm output).
+            # Unit norm alone caps the logits at the head's weight norm: in E004's
+            # check the loss stayed at ~2.5 (chance 2.89) after 30 epochs.
+            pooled = nn.functional.normalize(pooled.float(), dim=-1) * pooled.shape[-1] ** 0.5
+        return self.head(self.dropout(pooled))
 
 
 MeanPoolClassifier = PooledClassifier  # E003 name; mean pooling is the default
@@ -260,6 +270,7 @@ def train_classifier(
     on_epoch_end: Callable[[int, PooledClassifier], None] | None = None,
     pooling: str = "mean",
     text_format: TextFormat = TextFormat(),
+    normalize: bool = False,
 ) -> tuple[PooledClassifier, list[float]]:
     """Train a fresh classifier. Returns it with its loss history.
 
@@ -276,7 +287,7 @@ def train_classifier(
     device = torch.device(device)
     set_seed(config.seed)
     model = PooledClassifier(make_backbone(), n_classes, config.dropout, pooling,
-                             text_format).to(device)
+                             text_format, normalize).to(device)
     ids = tokenize(tokenizer, texts, config.max_length, text_format)
     y = torch.tensor(np.asarray(labels), dtype=torch.long)
     micro = config.micro_batch_size or config.batch_size

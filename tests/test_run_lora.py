@@ -135,7 +135,7 @@ def test_arms_follow_the_e004_design():
     assert set(ARMS) == {"G", "Q0", "Q4", "Q8"}
     for key, arm in ARMS.items():
         assert arm.lora is not None and arm.lora.r == 16 and arm.lora.alpha == 32
-        assert arm.dtype == torch.bfloat16
+        assert arm.dtype == torch.bfloat16 and arm.normalize
         assert 16 % MICRO_BATCH[key] == 0  # effective batch 16 in every arm
     assert ARMS["G"].pooling == "mean" and ARMS["G"].text_format.end_token is None
     assert ARMS["G"].text_format.prompt == "task: classification | query: "

@@ -325,8 +325,33 @@ def test_gradient_checkpointing_is_enabled_only_when_asked():
 
 def test_e003_arms_keep_their_original_recipe():
     for arm in ARMS.values():
-        assert arm.pooling == "mean"
+        assert arm.pooling == "mean" and not arm.normalize
         assert arm.text_format == TextFormat()
         assert arm.dtype == torch.float32
         assert arm.lora is None and not arm.gradient_checkpointing
         assert dict(arm.load_kwargs) == {}
+
+
+# ---------------------------------------------------------------- normalization
+
+
+def test_normalized_embedding_has_norm_sqrt_dim_and_bounded_logits(tokenizer):
+    torch.manual_seed(0)
+    model = PooledClassifier(tiny_qwen(), N_CLASSES, dropout=0.0, pooling="last",
+                             text_format=FORMAT, normalize=True)
+    captured = {}
+    model.head.register_forward_hook(lambda m, inp, out: captured.update(x=inp[0]))
+    ids = torch.tensor(tokenize(tokenizer, ["w5 w6 w7"], 512, FORMAT))
+    logits = model(ids, torch.ones_like(ids))
+    dim = captured["x"].shape[-1]
+    torch.testing.assert_close(captured["x"].norm(dim=-1), torch.full((1,), dim ** 0.5))
+    bound = dim ** 0.5 * model.head.weight.norm(dim=1) + model.head.bias.abs()  # Cauchy-Schwarz
+    assert (logits.abs()[0] <= bound + 1e-6).all()
+
+
+def test_normalization_is_off_by_default_and_passed_through_training(tokenizer):
+    assert not PooledClassifier(tiny_qwen(), N_CLASSES).normalize
+    texts, labels = synthetic(n_per_class=1)
+    model, _ = train_lora(texts, labels, EncoderConfig(lr=1e-2, epochs=1, batch_size=4),
+                          tok=tokenizer, normalize=True)
+    assert model.normalize
