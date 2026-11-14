@@ -1,8 +1,8 @@
-"""Pre-registered decision rules of E003 (H003 and H004, issue #5).
+"""Pre-registered decision rules of E003 (H003, H004, issue #5) and E004 (H005, #7).
 
 Pure functions with no torch dependency, so the rules that decide each
-hypothesis can be tested without a GPU. Thresholds were fixed in H003, H004
-and E003 before any run.
+hypothesis can be tested without a GPU. Thresholds were fixed in the
+hypotheses and experiments before any run.
 """
 
 from __future__ import annotations
@@ -19,6 +19,9 @@ H003_CONFIRM_AT = 0.412  # baseline + 0.10
 H003_REJECT_BELOW = 0.362  # baseline + 0.05
 H004_MIN_DIFF = 0.02
 H004_MIN_WINS = 8  # out of 10 folds (fold seeds 1 and 2)
+GTE_BALANCED_ACCURACY = 0.357  # F003, E003 arm B, mean of fold seeds 1 and 2
+H005_CONFIRM_AT = 0.412  # mission target
+H005_REJECT_AT_OR_BELOW = 0.377  # gte + 0.02; H005 rejects if 4B/8B do not exceed it
 CONFIG_TIE_TOLERANCE = 0.005
 MIN_LOSS_DROP = 0.5  # final loss must be at most half the initial loss
 MIN_RUN_BALANCED_ACCURACY = 0.10
@@ -49,6 +52,20 @@ def h003_status(best_mean: float, all_stable: bool, grid_complete: bool = True) 
     if best_mean >= H003_CONFIRM_AT - _EPS:
         return CONFIRMED
     if best_mean < H003_REJECT_BELOW - _EPS and grid_complete:
+        return REJECTED
+    return INCONCLUSIVE
+
+
+def h005_status(best_large_mean: float, all_stable: bool) -> str:
+    """H005: the better of Qwen3-Embedding 4B and 8B, mean over fold seeds 1 and 2.
+
+    H005 rejects when neither model *exceeds* gte + 0.02, so exactly 0.377 rejects.
+    """
+    if not all_stable:
+        return INCONCLUSIVE
+    if best_large_mean >= H005_CONFIRM_AT - _EPS:
+        return CONFIRMED
+    if best_large_mean <= H005_REJECT_AT_OR_BELOW + _EPS:
         return REJECTED
     return INCONCLUSIVE
 
