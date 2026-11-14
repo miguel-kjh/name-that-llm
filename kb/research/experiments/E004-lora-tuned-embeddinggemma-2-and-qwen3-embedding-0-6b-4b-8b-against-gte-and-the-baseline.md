@@ -153,8 +153,35 @@ Métrica principal: balanced accuracy OOF por brazo, media de las semillas 1 y 2
 
 - [x] (`2026-11-14`) Diseño del experimento con el protocolo reducido acordado con el
   usuario. Q8 en bf16; QLoRA solo si no cabe.
-- [ ] Dependencias (`peft`) y descarga de modelos con commits fijados.
-- [ ] Implementación y tests.
+- [x] (`2026-11-14`) Dependencias: `peft` 0.21.3 (trae `accelerate` 1.15.0). Modelos
+  descargados con los commits fijados. La descarga por xet (backend por defecto de
+  huggingface_hub) se colgaba sin avanzar; con `HF_HUB_DISABLE_XET=1` funciona.
+- [x] (`2026-11-14`) Implementación: `encoder.py` (pooling por último token, `TextFormat`,
+  LoRA, gradient checkpointing, micro-batches, `output_size`), `decisions.py`
+  (`h005_status`), `experiments/runs.py` (maquinaria de runs compartida con E003, movida sin
+  cambiar la lógica) y `experiments/run_lora.py`. 134 tests pasan (89 de E003 sin tocar).
+- Decisiones y hallazgos de implementación (antes de ejecutar nada de E004):
+  - **Token final de Qwen:** el tokenizer de Qwen3-Embedding ya termina cada secuencia en
+    `<|endoftext|>`, el token sobre el que el modelo hace pooling, pero su `eos_token` es
+    `<|im_end|>`. Una primera versión añadía `<|im_end|>` detrás y habría hecho el pooling
+    sobre el token equivocado. Ahora `TextFormat.end_token` nombra el token explícitamente
+    y se garantiza exactamente uno al final; el preflight lo comprueba.
+  - **Padding a la derecha** en todos los brazos, también en Qwen (el ejemplo oficial usa
+    padding a la izquierda). Con atención causal y el último token real, es idéntico a
+    procesar cada texto sin padding; el izquierdo desplaza las posiciones según el padding.
+    Hay un test de invariancia.
+  - **embeddinggemma-2** proyecta sus estados de 512 a 768 (`text_config.embedding_dim`)
+    antes de devolverlos; la cabeza usa la anchura real de la salida. Cargado solo con
+    texto: 271M parámetros, 6,1M entrenables con LoRA. `all-linear` incluye también las
+    proyecciones por capa (per-layer embeddings) de su arquitectura.
+  - Q0: 10,1M parámetros LoRA entrenables de 606M. Máximo 394 tokens (Q0) y 368 (G) con el
+    prompt; 0 truncados.
+  - **Regresión de E003:** el run B, semilla 1, fold 0 con el código refactorizado empieza
+    con la misma pérdida exacta (2,92339) y termina en 0,359 frente a 0,356. Repetido con
+    el mismo código da 0,339: el no determinismo de la GPU entre ejecuciones idénticas es
+    de ~0,02 por fold, mayor que la diferencia con la referencia. La refactorización no
+    cambia el comportamiento. Consecuencia para el análisis: diferencias por fold < 0,02
+    entre brazos son ruido; las decisiones usan medias de 10 folds.
 - [ ] Preflight y piloto de tiempo y memoria.
 - [ ] Búsqueda (semilla 0).
 - [ ] Decisión (semillas 1 y 2).
