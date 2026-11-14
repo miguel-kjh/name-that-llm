@@ -16,7 +16,8 @@ Phases, in order:
     summarize  decision rules of H003 and H004                 -> summary.json + tables
 
 Every training run writes its out-of-fold predictions to `oof/` and then a row
-to its CSV, so an interrupted phase resumes where it stopped.
+to its CSV, so an interrupted phase resumes where it stopped. The fold-level
+machinery is shared with E004 in `runs.py`.
 """
 
 from __future__ import annotations
@@ -41,20 +42,32 @@ from name_that_llm.decisions import (
     MIN_RUN_BALANCED_ACCURACY,
     h003_status,
     h004_status,
-    pick_config,
     run_is_stable,
 )
 from name_that_llm.encoder import (
     ARMS,
     EncoderConfig,
-    MeanPoolClassifier,
+    PooledClassifier,
     backbone_factory,
     count_truncated,
     load_tokenizer,
     predict_proba,
     train_classifier,
 )
+from name_that_llm.experiments import runs
 from name_that_llm.experiments.provenance import git_revision, sha256
+from name_that_llm.experiments.runs import (  # noqa: F401  (re-exported for E003 callers)
+    RUN_KEY,
+    append_row,
+    completed_keys,
+    control_train_labels,
+    device,
+    load_folds,
+    oof_frame,
+    oof_path,
+    read_oof,
+    run_key,
+)
 from name_that_llm.metrics import (
     accuracy_by_length,
     balanced_accuracy,
@@ -84,101 +97,13 @@ STOP_IF_SEARCH_BELOW = 0.20
 DEFAULT_OUT_DIR = Path("kb/research/data/E003")
 ALL_FOLDS = tuple(range(N_SPLITS))
 
-# One training run = one fold. Search runs have epochs = MAX_EPOCHS and store
-# predictions for every epoch; eval and control runs store their last epoch.
-RUN_KEY = ["phase", "arm", "lr", "epochs", "seed", "fold"]
+# ---------------------------------------------------------------- E003 wrappers
+# The fold-level machinery lives in `runs.py` (shared with E004); these keep
+# E003's call sites and fix its arms, schedule and grid.
 
-
-# ---------------------------------------------------------------- pure helpers
-
-
-def load_folds(train: pd.DataFrame, folds_csv: pd.DataFrame, seed: int) -> pd.Series:
-    """Fold of each row of `train` for fold seed `seed`, aligned by `id`."""
-    table = folds_csv[folds_csv.seed == seed].set_index("id").fold
-    missing = set(train.id) - set(table.index)
-    if missing:
-        raise ValueError(f"{len(missing)} ids have no fold for seed {seed}")
-    return pd.Series(table.loc[train.id].to_numpy(), index=train.index, name="fold")
-
-
-def control_train_labels(y: np.ndarray, folds: pd.Series, fold: int, seed: int) -> np.ndarray:
-    """Labels for the leakage control: permuted inside the training folds only.
-
-    Validation labels are left untouched, so the control is scored against the truth.
-    """
-    y_train = np.array(y, copy=True)
-    is_train = (folds != fold).to_numpy()
-    y_train[is_train] = np.random.default_rng(seed).permutation(y_train[is_train])
-    return y_train
-
-
-def completed_keys(csv_path: Path) -> set[tuple]:
-    if not csv_path.exists():
-        return set()
-    done = pd.read_csv(csv_path)
-    return {_key(row) for row in done[RUN_KEY].to_dict("records")}
-
-
-def _key(row: dict) -> tuple:
-    return (row["phase"], row["arm"], float(row["lr"]), int(row["epochs"]),
-            int(row["seed"]), int(row["fold"]))
-
-
-def append_row(csv_path: Path, row: dict) -> None:
-    pd.DataFrame([row]).to_csv(csv_path, mode="a", header=not csv_path.exists(), index=False)
-
-
-def oof_path(out_dir: Path, key: tuple) -> Path:
-    phase, arm, lr, epochs, seed, fold = key
-    return out_dir / "oof" / f"{phase}_{arm}_lr{lr:g}_ep{epochs}_s{seed}_f{fold}.parquet"
-
-
-# ---------------------------------------------------------------- training
-
-
-def device() -> torch.device:
-    if not torch.cuda.is_available():
-        raise SystemExit("CUDA is not available; E003 runs on the GPU.")
-    return torch.device("cuda")
-
-
-def oof_frame(probs: np.ndarray, val: pd.DataFrame, classes: list[str], epoch: int) -> pd.DataFrame:
-    oof = pd.DataFrame(probs, columns=[f"p_{c}" for c in classes])
-    oof.insert(0, "id", val.id.to_numpy())
-    oof.insert(1, "model", val.model.to_numpy())
-    oof.insert(2, "pred", [classes[i] for i in probs.argmax(axis=1)])
-    oof.insert(3, "epoch", epoch)
-    return oof
-
-
-def run_fold(
-    arm: str, cfg: EncoderConfig, train: pd.DataFrame, y_train: np.ndarray,
-    folds: pd.Series, fold: int, tokenizer, classes: list[str], every_epoch: bool,
-) -> tuple[pd.DataFrame, list[float], float]:
-    """Train on every fold but `fold` (with labels `y_train`) and predict `fold`.
-
-    With `every_epoch`, the validation fold is scored after each epoch (search
-    phase); otherwise only after the last one.
-    """
-    t0 = time.perf_counter()  # monotonic: time.time() can jump under WSL
-    is_val = (folds == fold).to_numpy()
-    val = train[is_val]
-    frames = []
-
-    def score(epoch, model):
-        probs = predict_proba(model, tokenizer, val.text.tolist(), MAX_LENGTH, device=device())
-        frames.append(oof_frame(probs, val, classes, epoch))
-
-    model, history = train_classifier(
-        train.text[~is_val].tolist(), y_train[~is_val], len(classes), cfg,
-        tokenizer, backbone_factory(ARMS[arm]), device(),
-        on_epoch_end=score if every_epoch else None,
-    )
-    if not every_epoch:
-        score(cfg.epochs, model)
-    del model
-    torch.cuda.empty_cache()
-    return pd.concat(frames, ignore_index=True), history, time.perf_counter() - t0
+_key = run_key
+E003_BASE_CONFIG = EncoderConfig(lr=0.0, epochs=1, schedule_epochs=MAX_EPOCHS,
+                                 max_length=MAX_LENGTH)
 
 
 def train_and_record(
@@ -186,69 +111,21 @@ def train_and_record(
     folds: pd.Series, classes: list[str], csv_path: Path, out_dir: Path,
     fold_ids: tuple[int, ...], shuffle: bool = False, every_epoch: bool = False,
 ) -> None:
-    """Folds `fold_ids` of one (phase, arm, lr, epochs, seed); skips folds already recorded.
-
-    Every run uses the MAX_EPOCHS schedule and trains `epochs` epochs of it.
-    """
-    done = completed_keys(csv_path)
-    y = train.model.map({c: i for i, c in enumerate(classes)}).to_numpy()
-    tokenizer = load_tokenizer(ARMS[arm])
-    cfg = EncoderConfig(lr=lr, epochs=epochs, schedule_epochs=MAX_EPOCHS,
-                        max_length=MAX_LENGTH, seed=seed)
-    for fold in fold_ids:
-        key = (phase, arm, float(lr), int(epochs), int(seed), int(fold))
-        if key in done:
-            continue
-        y_train = control_train_labels(y, folds, fold, 1000 * seed + fold) if shuffle else y
-        oof, history, seconds = run_fold(arm, cfg, train, y_train, folds, fold,
-                                         tokenizer, classes, every_epoch)
-        path = oof_path(out_dir, key)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        oof.to_parquet(path, index=False)
-        by_epoch = [balanced_accuracy(g.model, g.pred) for _, g in oof.groupby("epoch")]
-        append_row(csv_path, {
-            **dict(zip(RUN_KEY, key)), "balanced_accuracy": by_epoch[-1],
-            "epoch_balanced_accuracy": json.dumps([round(v, 4) for v in by_epoch]),
-            "n_val": int((oof.epoch == oof.epoch.max()).sum()),
-            "initial_loss": history[0], "final_loss": history[-1],
-            "loss_history": json.dumps([round(v, 5) for v in history]),
-            "stable": run_is_stable(history), "seconds": round(seconds, 1),
-        })
-        curve = (f" (best epoch {int(np.argmax(by_epoch)) + 1}: {max(by_epoch):.3f})"
-                 if every_epoch else "")
-        print(f"{phase} {arm} lr={lr:g} ep={epochs} seed={seed} fold={fold}: "
-              f"bal_acc={by_epoch[-1]:.3f}{curve} loss {history[0]:.2f}->{history[-1]:.3f} "
-              f"({seconds:.0f}s)", flush=True)
-
-
-def read_oof(out_dir: Path, keys: list[tuple]) -> pd.DataFrame:
-    """OOF predictions of the given runs, tagged with their fold seed and fold."""
-    return pd.concat(
-        [pd.read_parquet(oof_path(out_dir, k)).assign(seed=k[4], fold=k[5]) for k in keys],
-        ignore_index=True,
-    )
+    """Every E003 run uses the MAX_EPOCHS schedule and trains `epochs` epochs of it."""
+    runs.train_and_record(phase, arm, ARMS[arm], E003_BASE_CONFIG, lr, epochs, seed, train,
+                          folds, classes, csv_path, out_dir, fold_ids, shuffle=shuffle,
+                          every_epoch=every_epoch)
 
 
 def search_curves(out_dir: Path, arm: str, fold_ids: tuple[int, ...]) -> pd.DataFrame:
     """Pooled OOF balanced accuracy of seed 0 per (lr, epoch) for one arm."""
-    search = pd.read_csv(out_dir / "search.csv")
-    rows = []
-    for lr in SEARCH_LRS:
-        runs = search[(search.arm == arm) & np.isclose(search.lr, lr)
-                      & search.fold.isin(fold_ids)]
-        if sorted(runs.fold) != sorted(fold_ids):
-            raise SystemExit(f"Search for arm {arm} lr={lr:g} is incomplete.")
-        oof = read_oof(out_dir, [_key(r) for r in runs[RUN_KEY].to_dict("records")])
-        for epoch in range(1, MAX_EPOCHS + 1):
-            at = oof[oof.epoch == epoch]
-            rows.append({"arm": arm, "lr": lr, "epochs": epoch,
-                         "balanced_accuracy": balanced_accuracy(at.model, at.pred)})
-    return pd.DataFrame(rows)
+    return runs.search_curves(out_dir, arm, fold_ids, SEARCH_LRS, MAX_EPOCHS)
 
 
 def chosen_configs(out_dir: Path, arms: list[str], fold_ids: tuple[int, ...]) -> dict[str, dict]:
     """Search winner (lr, epoch) per arm."""
-    return {arm: pick_config(search_curves(out_dir, arm, fold_ids)) for arm in arms}
+    return {arm: runs.best_config(out_dir, arm, fold_ids, SEARCH_LRS, MAX_EPOCHS)
+            for arm in arms}
 
 
 # ---------------------------------------------------------------- phases
@@ -342,7 +219,7 @@ def phase_timing(train, folds_csv, classes, args) -> None:
         torch.cuda.synchronize()
         t0 = time.perf_counter()
         tokenizer = load_tokenizer(ARMS[arm])
-        model = MeanPoolClassifier(backbone_factory(ARMS[arm])(), len(classes)).to(device())
+        model = PooledClassifier(backbone_factory(ARMS[arm])(), len(classes)).to(device())
         predict_proba(model, tokenizer, texts, MAX_LENGTH, device=device())
         torch.cuda.synchronize()
         seconds = time.perf_counter() - t0
