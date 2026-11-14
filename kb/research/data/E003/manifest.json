@@ -1,0 +1,157 @@
+{
+  "experiment": "E003",
+  "hypotheses": [
+    "H003",
+    "H004"
+  ],
+  "issue": 5,
+  "data": {
+    "path": "data/train.csv",
+    "sha256": "40a22ce8d88c5f46feb4637a099db815bef5f713ffe53e89dbe1b7b21de77707",
+    "rows": 2699,
+    "prompts": 150,
+    "models": 18
+  },
+  "validation": {
+    "folds_csv": "kb/research/data/E002/folds.csv",
+    "n_splits": 5,
+    "search_seed": 0,
+    "eval_seeds": [
+      1,
+      2
+    ],
+    "control": {
+      "arm": "A",
+      "seed": 1
+    }
+  },
+  "arms": {
+    "A": {
+      "model": "answerdotai/ModernBERT-base",
+      "revision": "8949b909ec900327062f0ebf497f51aef5e6f0c8"
+    },
+    "B": {
+      "model": "Alibaba-NLP/gte-modernbert-base",
+      "revision": "e7f32e3c00f91d699e8c43b53106206bcc72bb22"
+    }
+  },
+  "recipe": {
+    "lr": 0.0,
+    "epochs": 0,
+    "schedule_epochs": null,
+    "batch_size": 16,
+    "max_length": 512,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "grad_clip": 1.0,
+    "dropout": 0.1,
+    "seed": 0,
+    "bf16": true,
+    "pooling": "masked mean",
+    "head": "dropout + linear",
+    "search_lrs": [
+      1e-05,
+      3e-05,
+      5e-05
+    ],
+    "max_epochs": 10,
+    "schedule": "linear warmup 10% + linear decay over max_epochs; eval and control stop after the chosen epoch"
+  },
+  "versions": {
+    "python": "3.12.15",
+    "torch": "2.11.0+cu128",
+    "transformers": "5.23.0",
+    "sklearn": "1.9.1",
+    "pandas": "3.1.1",
+    "numpy": "2.5.4"
+  },
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 4090"
+  },
+  "phases": {
+    "preflight": {
+      "command": "python -m name_that_llm.experiments.run_encoder --phase preflight",
+      "code_revision": "ad5ec1954f101edcd8c7b75e4c47fdbb1e6d0ad7-dirty",
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-14T18:28:00+00:00",
+      "runtime_seconds": 78.8
+    },
+    "search": {
+      "command": "python -m name_that_llm.experiments.run_encoder --phase search",
+      "code_revision": "ad5ec1954f101edcd8c7b75e4c47fdbb1e6d0ad7-dirty",
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-14T19:37:01+00:00",
+      "runtime_seconds": 4088.8
+    },
+    "eval": {
+      "command": "python -m name_that_llm.experiments.run_encoder --phase eval",
+      "code_revision": "ad5ec1954f101edcd8c7b75e4c47fdbb1e6d0ad7-dirty",
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-14T20:49:41+00:00",
+      "runtime_seconds": 3506.1
+    },
+    "control": {
+      "command": "python -m name_that_llm.experiments.run_encoder --phase control --arms A",
+      "code_revision": "ad5ec1954f101edcd8c7b75e4c47fdbb1e6d0ad7-dirty",
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-14T20:54:35+00:00",
+      "runtime_seconds": 290.5
+    },
+    "timing": {
+      "command": "python -m name_that_llm.experiments.run_encoder --phase timing",
+      "code_revision": "ad5ec1954f101edcd8c7b75e4c47fdbb1e6d0ad7-dirty",
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-14T20:54:46+00:00",
+      "runtime_seconds": 8.2
+    },
+    "summarize": {
+      "command": "python -m name_that_llm.experiments.run_encoder --phase summarize",
+      "code_revision": "ad5ec1954f101edcd8c7b75e4c47fdbb1e6d0ad7-dirty",
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-14T20:54:49+00:00",
+      "runtime_seconds": 0.6
+    }
+  }
+}

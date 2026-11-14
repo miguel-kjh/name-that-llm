@@ -17,10 +17,8 @@ Also runs a label-shuffled control to detect leakage. Writes:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import platform
-import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -31,6 +29,7 @@ import pandas as pd
 import sklearn
 
 from name_that_llm.baseline import BASELINE_CONFIG, make_baseline
+from name_that_llm.experiments.provenance import git_revision, sha256
 from name_that_llm.metrics import (
     accuracy_by_length,
     confusion,
@@ -50,19 +49,6 @@ def run_seed(train: pd.DataFrame, seed: int, n_splits: int, labels: pd.Series):
         for fold in range(n_splits)
     ]
     return folds, preds, fold_rows
-
-
-def git_revision() -> str:
-    try:
-        rev = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-        dirty = subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
-        return rev + ("-dirty" if dirty else "")
-    except (OSError, subprocess.CalledProcessError):
-        return "unknown"
-
-
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def main() -> None:

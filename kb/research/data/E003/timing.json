@@ -1,0 +1,12 @@
+{
+  "A": {
+    "n_texts": 4000,
+    "seconds": 4.5,
+    "passed": true
+  },
+  "B": {
+    "n_texts": 4000,
+    "seconds": 3.5,
+    "passed": true
+  }
+}

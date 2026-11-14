@@ -29,3 +29,15 @@ dev = [
     "pytest>=9.2.0",
     "six>=1.17.0",
 ]
+gpu = [
+    "torch>=2.7",
+    "transformers>=4.48",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
