@@ -1,6 +1,6 @@
 {
   "cuda": true,
-  "gpu": "NVIDIA GeForce RTX 4070 SUPER",
+  "gpu": "NVIDIA GeForce RTX 4090",
   "folds_match_e002": {
     "0": true,
     "1": true,
@@ -15,8 +15,8 @@
       "max_tokens": 396,
       "memorize_train_accuracy": 1.0,
       "memorize_loss": [
-        3.2218947410583496,
-        0.0006996353768045083
+        3.221980571746826,
+        0.0007828443340258673
       ]
     },
     "B": {
@@ -27,8 +27,8 @@
       "max_tokens": 396,
       "memorize_train_accuracy": 1.0,
       "memorize_loss": [
-        3.1352882385253906,
-        0.0014386982074938715
+        3.1350719928741455,
+        0.0014099873369559646
       ]
     }
   },

@@ -2,17 +2,17 @@
 id: "H004"
 aliases: ["H004"]
 type: hypothesis
-status: PROPOSED
+status: REJECTED
 created: "2026-11-13"
-last_updated: "2026-11-13"
+last_updated: "2026-11-14"
 tags: [encoder, embeddings, fine-tuning]
 ---
 
 # H004 — MLM encoder beats its contrastive embedding version at equal backbone
 
-> **Status**: PROPOSED
+> **Status**: REJECTED
 > **Created**: 2026-11-13
-> **Last updated**: 2026-11-13
+> **Last updated**: 2026-11-14
 
 ## Statement
 
@@ -77,7 +77,10 @@ mismo backbone, y orienta qué familia de modelos escalar después.
 
 ## Conclusion
 
-Pendiente de E003.
+**Rechazada** ([[E003]] → [[F004]], 2026-11-14): ocurre lo contrario. B (contrastivo) supera a
+A (MLM) en +0,039 (0,357 frente a 0,318) y gana en los 10 folds. Los dos brazos superan al
+baseline en media, así que la comparación es válida. Para escalar, se prefieren encoders de
+embeddings.
 
 ## Links
 
@@ -86,3 +89,5 @@ Pendiente de E003.
 - Literature: [[L001]]
 - Related hypothesis: [[H003]]
 - Experiment: [[E003]]
+- Finding: [[F004]]
+- Finding: [[F004]]

@@ -2,19 +2,19 @@
 id: "E003"
 aliases: ["E003"]
 type: experiment
-status: DESIGNED
+status: COMPLETED
 hypothesis: "H003"
 created: "2026-11-13"
-completed: ""
+completed: "2026-11-14"
 tags: [encoder, embeddings, fine-tuning]
 ---
 
 # E003 — Fine-tuned ModernBERT-base vs gte-modernbert-base against char TF-IDF baseline
 
-> **Status**: DESIGNED
+> **Status**: COMPLETED
 > **Hypothesis**: [[H003]] (principal), [[H004]] (comparación entre brazos)
 > **Created**: 2026-11-13
-> **Completed**:
+> **Completed**: 2026-11-14
 
 ## Objective
 
@@ -180,10 +180,22 @@ Métrica principal: balanced accuracy OOF por modelo, media de las semillas 1 y 
   regla de parada ahora bloquea `--phase eval` en vez de solo avisar. 89 tests pasan.
 - Estimación con los datos completos: unos 3–4 min por run de búsqueda de 10 épocas, unas
   2,5–3 h para todo el experimento.
-- [ ] Fase de búsqueda (semilla 0).
-- [ ] Fase de decisión (semillas 1 y 2).
-- [ ] Control con etiquetas barajadas y guardarraíl de inferencia.
-- [ ] Resumen, análisis y finding.
+- [x] (`2026-11-14`) Cambio de máquina: el resto de E003 se ejecuta en una NVIDIA RTX 4090
+  (24 GB), mismas versiones (torch 2.11.0+cu128, transformers 5.23.0) y mismo hash de datos.
+  Preflight repetido y **superado**: folds idénticos, 0 truncados, float32, memorización
+  100 % (pérdida A 3,22 → 0,0008, B 3,14 → 0,0014; prácticamente igual que en la 4070). 89
+  tests pasan.
+- [x] (`2026-11-14`) Fase de búsqueda (semilla 0): 30/30 runs estables, ~100 s de
+  entrenamiento por run (~140 s con carga y evaluación; ~70 min en total). Elegidos: A lr 3e-5,
+  k* = 6 (OOF 0,349); B lr 5e-5, k* = 8 (OOF 0,358). Baseline en la semilla 0: 0,322. Regla de
+  parada (≥ 0,20) superada. Notas para el análisis: el 0,349 de A en la época 6 es un pico
+  (0,331 y 0,320 en las épocas 7 y 8; meseta ~0,33); el lr de B está en el borde superior de
+  la rejilla. Curvas en `search_curves.csv`.
+- [x] (`2026-11-14`) Fase de decisión (semillas 1 y 2): 20/20 runs estables (A ~57 s, B
+  ~77 s por run).
+- [x] (`2026-11-14`) Control con etiquetas barajadas (0,051) e inferencia (4.000 pasajes en
+  4,5 s A / 3,5 s B en la 4090): superados.
+- [x] (`2026-11-14`) Resumen, análisis y findings [[F003]] y [[F004]].
 
 ## Results
 
@@ -207,11 +219,34 @@ Los checkpoints de los modelos no se guardan en `kb/` (pesan ~600 MB cada uno).
 
 ## Analysis
 
-_Pendiente._
+Balanced accuracy OOF (media de las semillas 1 y 2; baseline en las mismas semillas: 0,307):
+
+| Brazo | Config (búsqueda) | Búsqueda s0 | Semilla 1 | Semilla 2 | Media | Δ baseline | Folds > baseline |
+|---|---|---|---|---|---|---|---|
+| A ModernBERT-base | lr 3e-5, 6 ép. | 0,349 | 0,317 | 0,319 | 0,318 | +0,011 | 8/10 |
+| B gte-modernbert-base | lr 5e-5, 8 ép. | 0,358 | 0,358 | 0,355 | **0,357** | **+0,050** | 10/10 |
+
+- **Método válido:** preflight, 0 truncados, control 0,051 (≤ 0,08), todos los runs de
+  decisión estables (pérdida a menos de la mitad, balanced accuracy > 0,10), inferencia muy por
+  debajo de 10 min.
+- **[[H003]] rechazada:** los dos brazos < 0,362. Ver [[F003]].
+- **[[H004]] rechazada:** B − A = +0,039, B gana en 10/10 folds. Ver [[F004]].
+- **Selección en la semilla 0:** A cae de 0,349 a 0,318 en semillas nuevas; su elección fue un
+  pico de una época. B se mantiene (0,358 → 0,357): su meseta es estable.
+- **Dentro del laboratorio:** proporción de errores 0,527 (A) y 0,534 (B), igual que el
+  baseline (0,518). Balanced accuracy de laboratorio B 0,593 (baseline 0,539). El encoder
+  separa algo mejor los laboratorios, pero no los hermanos.
+- **Longitud:** B 0,291 / 0,372 / 0,413 en < 80 / 80–149 / 150+ palabras; mejora similar en
+  todos los tramos frente al baseline (0,256 / 0,313 / 0,375).
+- **Sobreajuste:** con lr ≥ 3e-5 la pérdida de train llega a ~0,001; con ~120 pasajes por
+  clase en cada fold el modelo memoriza.
 
 ## Decision
 
-_Pendiente._
+- El objetivo de la misión (≥ 0,412) no se alcanza con un encoder base fine-tuneado solo.
+- B (`gte-modernbert-base`, lr 5e-5, 8 épocas) pasa a ser el mejor modelo individual (0,357).
+- Siguiente paso barato: ensemble TF-IDF + B con las probabilidades OOF ya guardadas, antes de
+  gastar GPU en modelos más grandes.
 
 ## Links
 
@@ -221,3 +256,6 @@ _Pendiente._
 - Related hypothesis: [[H004]]
 - Comparator: [[E002]]
 - Literature: [[L001]]
+- Findings: [[F003]], [[F004]]
+- Finding: [[F003]]
+- Finding: [[F004]]

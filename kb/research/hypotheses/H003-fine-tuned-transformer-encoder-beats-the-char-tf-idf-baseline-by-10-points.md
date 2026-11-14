@@ -2,17 +2,17 @@
 id: "H003"
 aliases: ["H003"]
 type: hypothesis
-status: PROPOSED
+status: REJECTED
 created: "2026-11-13"
-last_updated: "2026-11-13"
+last_updated: "2026-11-14"
 tags: [encoder, fine-tuning]
 ---
 
 # H003 — Fine-tuned transformer encoder beats the char TF-IDF baseline by 10 points
 
-> **Status**: PROPOSED
+> **Status**: REJECTED
 > **Created**: 2026-11-13
-> **Last updated**: 2026-11-13
+> **Last updated**: 2026-11-14
 
 ## Statement
 
@@ -88,7 +88,11 @@ generalización a prompts nuevos que exige el test oculto.
 
 ## Conclusion
 
-Pendiente de E003.
+**Rechazada** ([[E003]] → [[F003]], 2026-11-14). El mejor brazo (`gte-modernbert-base`) logra
+0,357 (media de las semillas 1 y 2) frente a 0,307 del baseline en las mismas semillas, por
+debajo del umbral de rechazo (0,362), con todos los guardarraíles superados. La mejora (+0,05)
+es consistente (10 de 10 folds) pero la mitad de lo necesario. Se rechaza esta receta (encoder
+base, mean pooling, pocas épocas), no los encoders en general.
 
 ## Links
 
@@ -98,3 +102,5 @@ Pendiente de E003.
 - Prior findings: [[F001]], [[F002]]
 - Related hypothesis: [[H004]]
 - Experiment: [[E003]]
+- Findings: [[F003]], [[F004]]
+- Finding: [[F003]]
