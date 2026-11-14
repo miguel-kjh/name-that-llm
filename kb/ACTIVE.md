@@ -9,16 +9,16 @@ type: active-state
 
 Superar el baseline (0,307 en las semillas 1 y 2, [[F002]]) en al menos 10 puntos de balanced
 accuracy (≥ 0,412). El mejor modelo individual es `gte-modernbert-base` fine-tuneado: 0,357
-([[F003]]). El baseline no se sube a Kaggle (decisión del usuario, 2026-11-13); la correlación
-con el leaderboard se comprobará con los primeros envíos de modelos candidatos.
+([[F003]]). Ahora se prueba si escalar encoders de embeddings con LoRA (Qwen3-Embedding 4B/8B)
+llega al objetivo ([[H005]]).
 
 ## Next Step
 
-[[E003]] terminado (2026-11-14, RTX 4090): [[H003]] rechazada (mejor brazo 0,357 < 0,362) y
-[[H004]] rechazada (gte supera a ModernBERT MLM en 10/10 folds, [[F004]]). Decidir con el
-usuario la siguiente hipótesis. Propuesta: ensemble TF-IDF + gte con las probabilidades OOF ya
-guardadas (sin GPU), y después escalar a un encoder de embeddings más grande o atacar la
-confusión dentro del laboratorio. PR #6 fusionado en `main` el 2026-11-14 (issue #5 cerrado).
+[[E004]] diseñado (issue #7, rama `e004-lora`), con el protocolo reducido acordado con el
+usuario: G y Q0 buscan lr, Q4 y Q8 heredan el lr de Q0, y Q8 se ejecuta siempre. Siguiente:
+implementar según el plan del issue #7 (añadir `peft`, ampliar `encoder.py`, `runs.py`,
+`run_lora.py` y tests), regresión de E003 y smoke test. Ejecutar preflight, piloto y
+búsqueda **solo cuando el usuario lo diga**.
 
 ## Blocker
 
@@ -26,6 +26,8 @@ None.
 
 ## Working Set
 
+- [[H005]] → [[E004]]: encoders de embeddings con LoRA (embeddinggemma-2, Qwen3-Embedding
+  0,6B/4B/8B); umbrales 0,412 (confirma) y 0,377 (rechaza).
 - [[H003]], [[H004]] → [[E003]] → [[F003]], [[F004]]: encoder fine-tuneado 0,357 (+0,05);
   contrastivo > MLM. OOF por run en `kb/research/data/E003/oof/` (semillas 1 y 2 para el
   ensemble). Base bibliográfica: [[L001]] (HIGH); [[L002]] (LOW).
@@ -38,10 +40,12 @@ None.
   `src/name_that_llm/experiments/{run_baseline,run_encoder,provenance}.py`.
 - Entorno GPU: `uv sync --group gpu` (torch 2.11+cu128, transformers 5.23), RTX 4090. Los
   pesos se cargan siempre en float32: gte-modernbert-base viene en float16 y diverge a NaN.
-- Primary skill de la siguiente fase: `$experiment-rigor` (diseño de la siguiente hipótesis).
+- Primary skill de la fase: `$build-maintainable-software` (implementación de E004).
 
 ## Links
 
 - Mission: [[CHALLENGE]]
 - Latest findings: [[F003]], [[F004]]
 - Last experiment: [[E003]]
+- Designed experiment: [[E004]]
+- Open hypothesis: [[H005]]
