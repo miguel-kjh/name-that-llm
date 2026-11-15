@@ -17,7 +17,7 @@ puntos, ≥ 0,412 en los 10 folds; [[F005]]). [[H005]] confirmada.
 Después: diseñar el notebook de envío con Q8 (adaptador entrenado en local con todo el
 train, subido como dataset) y medir en Kaggle memoria y tiempo de inferencia: la T4 tiene
 15 GB y no tiene bf16, y los pesos del 8B ocupan ~15 GB (fp16, 2×T4 o cuantización). Si no
-cabe, parar y consultar. El ensemble (Q8, Q4, gte) queda detrás.
+cabe, parar y consultar. Después, [[H008]], [[H007]] y [[H006]] (en ese orden) y el ensemble.
 
 ## Blocker
 
@@ -25,6 +25,9 @@ None.
 
 ## Working Set
 
+- Propuestas tras [[E004]] (sin experimento todavía, mismo umbral ≥ 0,458 y ≥ 7/10 folds frente
+  a Q8): [[H006]] quitar el tema (capas intermedias, adversario de prompt), [[H007]] contrastiva
+  con hermanos + regularización, [[H008]] enrutador por grupo de estilo + especialistas.
 - [[H005]] → [[E004]] → [[F005]]: Qwen3-Embedding con LoRA escala 0,357 (0,6B) → 0,400 (4B)
   → 0,443 (8B); embeddinggemma-2 0,301 (descartado). OOF en `kb/research/data/E004/oof/`.
   La medición de tiempo en la 4090 es ruidosa (VRAM llena, WSL desborda a memoria del sistema).
