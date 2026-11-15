@@ -1,0 +1,59 @@
+{
+  "arms": {
+    "G": {
+      "load_seconds": 0.3,
+      "epoch_seconds": 36.6,
+      "val_seconds": 1.2,
+      "loss": [
+        3.0112788677215576,
+        2.9621833448056822
+      ],
+      "micro_batch_size": 16,
+      "peak_gpu_gb": 9.86
+    },
+    "Q0": {
+      "load_seconds": 0.3,
+      "epoch_seconds": 36.2,
+      "val_seconds": 2.2,
+      "loss": [
+        3.033452272415161,
+        2.91735536787245
+      ],
+      "micro_batch_size": 16,
+      "peak_gpu_gb": 16.27
+    },
+    "Q4": {
+      "load_seconds": 0.4,
+      "epoch_seconds": 218.8,
+      "val_seconds": 8.9,
+      "loss": [
+        3.055265426635742,
+        2.7702189639762596
+      ],
+      "micro_batch_size": 16,
+      "peak_gpu_gb": 11.5
+    },
+    "Q8": {
+      "load_seconds": 0.4,
+      "epoch_seconds": 258.8,
+      "val_seconds": 12.8,
+      "loss": [
+        3.2951151728630066,
+        2.6493426574601067
+      ],
+      "micro_batch_size": 4,
+      "peak_gpu_gb": 17.11
+    }
+  },
+  "projection": {
+    "per_arm_hours": {
+      "G": 1.245,
+      "Q0": 1.5562500000000004,
+      "Q4": 5.570555555555557,
+      "Q8": 6.61388888888889
+    },
+    "total_hours": 14.985694444444448,
+    "estimated_hours": 12.0,
+    "within_budget": true
+  }
+}

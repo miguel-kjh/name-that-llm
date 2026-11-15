@@ -30,6 +30,7 @@ dev = [
     "six>=1.17.0",
 ]
 gpu = [
+    "peft>=0.21.3",
     "torch>=2.7",
     "transformers>=4.48",
 ]

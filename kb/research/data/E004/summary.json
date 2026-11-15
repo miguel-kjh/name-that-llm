@@ -1,0 +1,429 @@
+{
+  "primary_metric": "balanced_accuracy (pooled OOF, mean of fold seeds 1 and 2)",
+  "baseline": {
+    "name": "E002 char TF-IDF + LR",
+    "seeds_1_2": 0.30711366538952745
+  },
+  "gte": {
+    "name": "E003 arm B gte-modernbert-base",
+    "seeds_1_2": 0.357
+  },
+  "arms": {
+    "G": {
+      "model": "google/embeddinggemma-2",
+      "config": {
+        "lr": 0.0003,
+        "epochs": 5
+      },
+      "search_balanced_accuracy_seed0": 0.308588118319662,
+      "per_seed": {
+        "1": {
+          "n": 2699,
+          "n_errors": 1867,
+          "accuracy": 0.3082623193775472,
+          "balanced_accuracy": 0.3082202336564753,
+          "lab_balanced_accuracy": 0.5680286307669485,
+          "within_lab_error_share": 0.5141938939475094
+        },
+        "2": {
+          "n": 2699,
+          "n_errors": 1906,
+          "accuracy": 0.2938125231567247,
+          "balanced_accuracy": 0.29375590355456127,
+          "lab_balanced_accuracy": 0.5438661177866785,
+          "within_lab_error_share": 0.5131164742917104
+        }
+      },
+      "mean_over_seeds": {
+        "n": 2699.0,
+        "n_errors": 1886.5,
+        "accuracy": 0.30103742126713595,
+        "balanced_accuracy": 0.3009880686055183,
+        "lab_balanced_accuracy": 0.5559473742768135,
+        "within_lab_error_share": 0.5136551841196099
+      },
+      "fold_balanced_accuracy": [
+        0.3056,
+        0.3222,
+        0.3133,
+        0.3037,
+        0.2963,
+        0.3076,
+        0.2759,
+        0.2963,
+        0.2889,
+        0.3
+      ],
+      "vs_baseline": {
+        "mean_diff": -0.006136653895274591,
+        "wins_a": 4,
+        "wins_b": 6,
+        "n_folds": 10,
+        "fold_diff": [
+          0.0222,
+          0.0204,
+          -0.011,
+          -0.0185,
+          -0.0204,
+          0.0107,
+          -0.0315,
+          -0.013,
+          0.0,
+          -0.0204
+        ]
+      },
+      "vs_gte": {
+        "mean_diff": -0.055593869731800784,
+        "wins_a": 0,
+        "wins_b": 10,
+        "n_folds": 10,
+        "fold_diff": [
+          -0.05,
+          -0.0407,
+          -0.0407,
+          -0.0481,
+          -0.0704,
+          -0.0319,
+          -0.0889,
+          -0.0833,
+          -0.0463,
+          -0.0556
+        ]
+      }
+    },
+    "Q0": {
+      "model": "Qwen/Qwen3-Embedding-0.6B",
+      "config": {
+        "lr": 0.0003,
+        "epochs": 5
+      },
+      "search_balanced_accuracy_seed0": 0.3608227690778026,
+      "per_seed": {
+        "1": {
+          "n": 2699,
+          "n_errors": 1754,
+          "accuracy": 0.350129677658392,
+          "balanced_accuracy": 0.35007954262987817,
+          "lab_balanced_accuracy": 0.6016002076843198,
+          "within_lab_error_share": 0.5478905359179019
+        },
+        "2": {
+          "n": 2699,
+          "n_errors": 1714,
+          "accuracy": 0.3649499814746202,
+          "balanced_accuracy": 0.3648695003728561,
+          "lab_balanced_accuracy": 0.6163690847055333,
+          "within_lab_error_share": 0.5501750291715286
+        }
+      },
+      "mean_over_seeds": {
+        "n": 2699.0,
+        "n_errors": 1734.0,
+        "accuracy": 0.3575398295665061,
+        "balanced_accuracy": 0.35747452150136716,
+        "lab_balanced_accuracy": 0.6089846461949265,
+        "within_lab_error_share": 0.5490327825447152
+      },
+      "fold_balanced_accuracy": [
+        0.3241,
+        0.3574,
+        0.3743,
+        0.3426,
+        0.3519,
+        0.3892,
+        0.3667,
+        0.3778,
+        0.3352,
+        0.3556
+      ],
+      "vs_baseline": {
+        "mean_diff": 0.05035121328224777,
+        "wins_a": 10,
+        "wins_b": 0,
+        "n_folds": 10,
+        "fold_diff": [
+          0.0407,
+          0.0556,
+          0.0501,
+          0.0204,
+          0.0352,
+          0.0923,
+          0.0593,
+          0.0685,
+          0.0463,
+          0.0352
+        ]
+      },
+      "vs_gte": {
+        "mean_diff": 0.0008939974457215893,
+        "wins_a": 3,
+        "wins_b": 6,
+        "n_folds": 10,
+        "fold_diff": [
+          -0.0315,
+          -0.0056,
+          0.0203,
+          -0.0093,
+          -0.0148,
+          0.0497,
+          0.0019,
+          -0.0019,
+          0.0,
+          -0.0
+        ]
+      }
+    },
+    "Q4": {
+      "model": "Qwen/Qwen3-Embedding-4B",
+      "config": {
+        "lr": 0.0003,
+        "epochs": 6
+      },
+      "search_balanced_accuracy_seed0": 0.4227094208302262,
+      "per_seed": {
+        "1": {
+          "n": 2699,
+          "n_errors": 1604,
+          "accuracy": 0.4057058169692479,
+          "balanced_accuracy": 0.4056922694506586,
+          "lab_balanced_accuracy": 0.6432751817237797,
+          "within_lab_error_share": 0.5885286783042394
+        },
+        "2": {
+          "n": 2699,
+          "n_errors": 1632,
+          "accuracy": 0.39533160429788816,
+          "balanced_accuracy": 0.3952821277653492,
+          "lab_balanced_accuracy": 0.6444302774069129,
+          "within_lab_error_share": 0.5839460784313726
+        }
+      },
+      "mean_over_seeds": {
+        "n": 2699.0,
+        "n_errors": 1618.0,
+        "accuracy": 0.40051871063356803,
+        "balanced_accuracy": 0.4004871986080039,
+        "lab_balanced_accuracy": 0.6438527295653463,
+        "within_lab_error_share": 0.586237378367806
+      },
+      "fold_balanced_accuracy": [
+        0.3907,
+        0.4278,
+        0.3969,
+        0.3944,
+        0.4185,
+        0.3987,
+        0.3852,
+        0.3926,
+        0.3611,
+        0.4389
+      ],
+      "vs_baseline": {
+        "mean_diff": 0.09337164750957853,
+        "wins_a": 10,
+        "wins_b": 0,
+        "n_folds": 10,
+        "fold_diff": [
+          0.1074,
+          0.1259,
+          0.0726,
+          0.0722,
+          0.1019,
+          0.1019,
+          0.0778,
+          0.0833,
+          0.0722,
+          0.1185
+        ]
+      },
+      "vs_gte": {
+        "mean_diff": 0.04391443167305236,
+        "wins_a": 10,
+        "wins_b": 0,
+        "n_folds": 10,
+        "fold_diff": [
+          0.0352,
+          0.0648,
+          0.0428,
+          0.0426,
+          0.0519,
+          0.0593,
+          0.0204,
+          0.013,
+          0.0259,
+          0.0833
+        ]
+      }
+    },
+    "Q8": {
+      "model": "Qwen/Qwen3-Embedding-8B",
+      "config": {
+        "lr": 0.0003,
+        "epochs": 6
+      },
+      "search_balanced_accuracy_seed0": 0.436388267462093,
+      "per_seed": {
+        "1": {
+          "n": 2699,
+          "n_errors": 1498,
+          "accuracy": 0.4449796220822527,
+          "balanced_accuracy": 0.44489932885906047,
+          "lab_balanced_accuracy": 0.6746616970775849,
+          "within_lab_error_share": 0.5761014686248331
+        },
+        "2": {
+          "n": 2699,
+          "n_errors": 1508,
+          "accuracy": 0.4412745461281956,
+          "balanced_accuracy": 0.44121551081282623,
+          "lab_balanced_accuracy": 0.6833221332146566,
+          "within_lab_error_share": 0.5755968169761273
+        }
+      },
+      "mean_over_seeds": {
+        "n": 2699.0,
+        "n_errors": 1503.0,
+        "accuracy": 0.44312708410522417,
+        "balanced_accuracy": 0.4430574198359434,
+        "lab_balanced_accuracy": 0.6789919151461208,
+        "within_lab_error_share": 0.5758491428004802
+      },
+      "fold_balanced_accuracy": [
+        0.4444,
+        0.4667,
+        0.4299,
+        0.4685,
+        0.4148,
+        0.4452,
+        0.4259,
+        0.4593,
+        0.4444,
+        0.4315
+      ],
+      "vs_baseline": {
+        "mean_diff": 0.1359514687100894,
+        "wins_a": 10,
+        "wins_b": 0,
+        "n_folds": 10,
+        "fold_diff": [
+          0.1611,
+          0.1648,
+          0.1056,
+          0.1463,
+          0.0981,
+          0.1483,
+          0.1185,
+          0.15,
+          0.1556,
+          0.1111
+        ]
+      },
+      "vs_gte": {
+        "mean_diff": 0.08649425287356319,
+        "wins_a": 10,
+        "wins_b": 0,
+        "n_folds": 10,
+        "fold_diff": [
+          0.0889,
+          0.1037,
+          0.0759,
+          0.1167,
+          0.0481,
+          0.1057,
+          0.0611,
+          0.0796,
+          0.1093,
+          0.0759
+        ]
+      }
+    }
+  },
+  "mean_balanced_accuracy": {
+    "G": 0.3009880686055183,
+    "Q0": 0.35747452150136716,
+    "Q4": 0.4004871986080039,
+    "Q8": 0.4430574198359434
+  },
+  "scaling": {
+    "Q4_minus_Q0": {
+      "mean_diff": 0.043020434227330775,
+      "wins_a": 10,
+      "wins_b": 0,
+      "n_folds": 10,
+      "fold_diff": [
+        0.0667,
+        0.0704,
+        0.0225,
+        0.0519,
+        0.0667,
+        0.0095,
+        0.0185,
+        0.0148,
+        0.0259,
+        0.0833
+      ]
+    },
+    "Q8_minus_Q4": {
+      "mean_diff": 0.042579821200510834,
+      "wins_a": 8,
+      "wins_b": 2,
+      "n_folds": 10,
+      "fold_diff": [
+        0.0537,
+        0.0389,
+        0.033,
+        0.0741,
+        -0.0037,
+        0.0465,
+        0.0407,
+        0.0667,
+        0.0833,
+        -0.0074
+      ]
+    },
+    "Q8_minus_Q0": {
+      "mean_diff": 0.08560025542784162,
+      "wins_a": 10,
+      "wins_b": 0,
+      "n_folds": 10,
+      "fold_diff": [
+        0.1204,
+        0.1093,
+        0.0556,
+        0.1259,
+        0.063,
+        0.056,
+        0.0593,
+        0.0815,
+        0.1093,
+        0.0759
+      ]
+    }
+  },
+  "best_large_arm": "Q8",
+  "guardrails": {
+    "preflight_passed": true,
+    "no_truncation": true,
+    "control_balanced_accuracy": 0.05818294804871985,
+    "control_passed": true,
+    "all_runs_loss_halved": true,
+    "eval_runs_above_floor": true,
+    "timing_passed": false
+  },
+  "kaggle_fit": {
+    "G": true,
+    "Q0": true,
+    "Q4": true,
+    "Q8": true
+  },
+  "submission_candidates": [
+    "G",
+    "Q0",
+    "Q8"
+  ],
+  "method_valid": true,
+  "H005": {
+    "status": "CONFIRMED",
+    "best_large_mean": 0.4430574198359434
+  }
+}

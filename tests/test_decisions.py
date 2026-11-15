@@ -132,3 +132,33 @@ def test_pick_config_outside_tolerance_is_not_a_tie():
 )
 def test_run_is_stable(history, bal_acc, expected):
     assert run_is_stable(history, bal_acc) is expected
+
+
+# ---------------------------------------------------------------- H005 (E004)
+
+from name_that_llm.decisions import h005_status  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    "best_large_mean, expected",
+    [
+        (0.412, CONFIRMED),
+        (0.45, CONFIRMED),
+        (0.4119, INCONCLUSIVE),
+        (0.3771, INCONCLUSIVE),
+        (0.377, REJECTED),  # "does not exceed gte + 0.02"
+        (0.357, REJECTED),
+    ],
+)
+def test_h005_boundaries(best_large_mean, expected):
+    assert h005_status(best_large_mean, all_stable=True) == expected
+
+
+def test_h005_float_noise_at_the_thresholds():
+    assert h005_status(0.1 + 0.312, all_stable=True) == CONFIRMED  # 0.41200000000000003
+    assert h005_status(0.357 + 0.02, all_stable=True) == REJECTED  # 0.37699999999999995
+
+
+@pytest.mark.parametrize("best_large_mean", [0.30, 0.39, 0.45])
+def test_h005_unstable_runs_are_always_inconclusive(best_large_mean):
+    assert h005_status(best_large_mean, all_stable=False) == INCONCLUSIVE

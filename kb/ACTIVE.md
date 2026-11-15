@@ -7,18 +7,17 @@ type: active-state
 
 ## Current Objective
 
-Superar el baseline (0,307 en las semillas 1 y 2, [[F002]]) en al menos 10 puntos de balanced
-accuracy (≥ 0,412). El mejor modelo individual es `gte-modernbert-base` fine-tuneado: 0,357
-([[F003]]). El baseline no se sube a Kaggle (decisión del usuario, 2026-11-13); la correlación
-con el leaderboard se comprobará con los primeros envíos de modelos candidatos.
+Convertir el primer modelo que cumple el objetivo local en un envío válido de Kaggle.
+Qwen3-Embedding-8B con LoRA llega a 0,443 de balanced accuracy (baseline 0,307 + 13,6
+puntos, ≥ 0,412 en los 10 folds; [[F005]]). [[H005]] confirmada.
 
 ## Next Step
 
-[[E003]] terminado (2026-11-14, RTX 4090): [[H003]] rechazada (mejor brazo 0,357 < 0,362) y
-[[H004]] rechazada (gte supera a ModernBERT MLM en 10/10 folds, [[F004]]). Decidir con el
-usuario la siguiente hipótesis. Propuesta: ensemble TF-IDF + gte con las probabilidades OOF ya
-guardadas (sin GPU), y después escalar a un encoder de embeddings más grande o atacar la
-confusión dentro del laboratorio. PR #6 fusionado en `main` el 2026-11-14 (issue #5 cerrado).
+[[E004]] completado (rama `e004-lora`, issue #7); falta revisar el PR con el usuario.
+Después: diseñar el notebook de envío con Q8 (adaptador entrenado en local con todo el
+train, subido como dataset) y medir en Kaggle memoria y tiempo de inferencia: la T4 tiene
+15 GB y no tiene bf16, y los pesos del 8B ocupan ~15 GB (fp16, 2×T4 o cuantización). Si no
+cabe, parar y consultar. Después, [[H008]], [[H007]] y [[H006]] (en ese orden) y el ensemble.
 
 ## Blocker
 
@@ -26,6 +25,12 @@ None.
 
 ## Working Set
 
+- Propuestas tras [[E004]] (sin experimento todavía, mismo umbral ≥ 0,458 y ≥ 7/10 folds frente
+  a Q8): [[H006]] quitar el tema (capas intermedias, adversario de prompt), [[H007]] contrastiva
+  con hermanos + regularización, [[H008]] enrutador por grupo de estilo + especialistas.
+- [[H005]] → [[E004]] → [[F005]]: Qwen3-Embedding con LoRA escala 0,357 (0,6B) → 0,400 (4B)
+  → 0,443 (8B); embeddinggemma-2 0,301 (descartado). OOF en `kb/research/data/E004/oof/`.
+  La medición de tiempo en la 4090 es ruidosa (VRAM llena, WSL desborda a memoria del sistema).
 - [[H003]], [[H004]] → [[E003]] → [[F003]], [[F004]]: encoder fine-tuneado 0,357 (+0,05);
   contrastivo > MLM. OOF por run en `kb/research/data/E003/oof/` (semillas 1 y 2 para el
   ensemble). Base bibliográfica: [[L001]] (HIGH); [[L002]] (LOW).
@@ -35,13 +40,13 @@ None.
   quizá sí.
 - Código: `src/name_that_llm/{validation,metrics,baseline,labels}.py`,
   `src/name_that_llm/{encoder,decisions}.py`,
-  `src/name_that_llm/experiments/{run_baseline,run_encoder,provenance}.py`.
+  `src/name_that_llm/experiments/{run_baseline,run_encoder,runs,run_lora,provenance}.py`.
 - Entorno GPU: `uv sync --group gpu` (torch 2.11+cu128, transformers 5.23), RTX 4090. Los
   pesos se cargan siempre en float32: gte-modernbert-base viene en float16 y diverge a NaN.
-- Primary skill de la siguiente fase: `$experiment-rigor` (diseño de la siguiente hipótesis).
+- Primary skill de la fase: `$build-maintainable-software` (implementación de E004).
 
 ## Links
 
 - Mission: [[CHALLENGE]]
-- Latest findings: [[F003]], [[F004]]
-- Last experiment: [[E003]]
+- Latest findings: [[F005]], [[F004]]
+- Last experiment: [[E004]]

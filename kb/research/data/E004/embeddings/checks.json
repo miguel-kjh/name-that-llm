@@ -1,0 +1,53 @@
+{
+  "Q0_lora": {
+    "config": {
+      "lr": 0.0003,
+      "epochs": 5,
+      "fold_seed": 1,
+      "fold": 0
+    },
+    "loss_history": [
+      2.85611,
+      2.77879,
+      2.17975,
+      1.63209,
+      1.02153,
+      0.40342
+    ],
+    "train_seconds": 180.3,
+    "fold_balanced_accuracy": 0.3240740740740741,
+    "e004_fold_balanced_accuracy": 0.3240740740740741,
+    "fold_matches_e004": true,
+    "head_on_embeddings_max_abs_diff": 0.0529026985168457,
+    "head_on_embeddings_matches": false,
+    "reloaded_adapter_max_abs_diff": 0.0,
+    "reloaded_adapter_argmax_agreement": 1.0,
+    "reloaded_adapter_matches": true
+  },
+  "Q8_lora": {
+    "config": {
+      "lr": 0.0003,
+      "epochs": 6,
+      "fold_seed": 1,
+      "fold": 0
+    },
+    "loss_history": [
+      3.35555,
+      2.65018,
+      1.80806,
+      1.00714,
+      0.23297,
+      0.0257,
+      0.00129
+    ],
+    "train_seconds": 1553.5,
+    "fold_balanced_accuracy": 0.4444444444444444,
+    "e004_fold_balanced_accuracy": 0.4444444444444444,
+    "fold_matches_e004": true,
+    "head_on_embeddings_max_abs_diff": 0.05277121067047119,
+    "head_on_embeddings_matches": false,
+    "reloaded_adapter_max_abs_diff": 0.0,
+    "reloaded_adapter_argmax_agreement": 1.0,
+    "reloaded_adapter_matches": true
+  }
+}
