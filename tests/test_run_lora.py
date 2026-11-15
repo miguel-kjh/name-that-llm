@@ -150,3 +150,30 @@ def test_every_arm_uses_the_6_epoch_schedule_and_batch_16():
     for key in ARMS:
         cfg = run_lora.base_config(key)
         assert (cfg.schedule_epochs, cfg.batch_size, cfg.max_length) == (MAX_EPOCHS, 16, 512)
+
+
+# ---------------------------------------------------------------- guardrails
+
+
+def _guardrails(**overrides):
+    g = {"preflight_passed": True, "no_truncation": True, "control_balanced_accuracy": 0.06,
+         "control_passed": True, "all_runs_loss_halved": True, "eval_runs_above_floor": True,
+         "timing_passed": True}
+    return {**g, **overrides}
+
+
+def test_a_slow_arm_does_not_invalidate_the_experiment():
+    assert run_lora.is_method_valid(_guardrails(timing_passed=False))
+
+
+@pytest.mark.parametrize("failed", ["preflight_passed", "no_truncation", "control_passed",
+                                    "all_runs_loss_halved", "eval_runs_above_floor"])
+def test_experiment_wide_guardrails_invalidate(failed):
+    assert not run_lora.is_method_valid(_guardrails(**{failed: False}))
+
+
+def test_a_slow_arm_is_not_a_submission_candidate():
+    timing = {"Q8": {"passed": True, "fits_kaggle": True},
+              "Q4": {"passed": False, "fits_kaggle": True},
+              "G": {"passed": True, "fits_kaggle": False}}
+    assert run_lora.submission_candidates(timing) == ["Q8"]

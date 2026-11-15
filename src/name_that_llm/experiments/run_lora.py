@@ -411,6 +411,22 @@ def phase_timing(train, folds_csv, classes, args) -> None:
     print(json.dumps(report, indent=2))
 
 
+# The inference guardrail is per arm (E004 design): an arm that fails it can still
+# confirm or reject H005, but it is not a submission candidate.
+PER_ARM_GUARDRAILS = ("timing_passed",)
+
+
+def is_method_valid(guardrails: dict) -> bool:
+    """Every experiment-wide guardrail holds; per-arm ones only gate submission."""
+    return all(v for k, v in guardrails.items()
+               if isinstance(v, bool) and k not in PER_ARM_GUARDRAILS)
+
+
+def submission_candidates(timing: dict) -> list[str]:
+    """Arms fast enough on the 4090 and projected to fit the Kaggle limit."""
+    return [a for a in ordered(timing) if timing[a]["passed"] and timing[a]["fits_kaggle"]]
+
+
 def phase_summarize(train, folds_csv, classes, args) -> None:
     out = args.out_dir
     arms = ordered(args.arms)
@@ -464,7 +480,7 @@ def phase_summarize(train, folds_csv, classes, args) -> None:
         "eval_runs_above_floor": eval_floor_ok,
         "timing_passed": all(t["passed"] for t in timing.values()),
     }
-    method_valid = all(v for v in guardrails.values() if isinstance(v, bool))
+    method_valid = is_method_valid(guardrails)
     stable = loss_ok and eval_floor_ok
 
     scaling = {}
@@ -483,6 +499,7 @@ def phase_summarize(train, folds_csv, classes, args) -> None:
         "best_large_arm": best_large,
         "guardrails": guardrails,
         "kaggle_fit": {a: timing[a]["fits_kaggle"] for a in timing},
+        "submission_candidates": submission_candidates(timing),
         "method_valid": method_valid,
         "H005": ({"status": h005_status(mean[best_large], all_stable=stable and method_valid),
                   "best_large_mean": mean[best_large]} if best_large else None),
