@@ -355,3 +355,46 @@ def test_normalization_is_off_by_default_and_passed_through_training(tokenizer):
     model, _ = train_lora(texts, labels, EncoderConfig(lr=1e-2, epochs=1, batch_size=4),
                           tok=tokenizer, normalize=True)
     assert model.normalize
+
+
+# ---------------------------------------------------------------- embeddings before the head
+
+
+def _normalized_model(seed=0):
+    torch.manual_seed(seed)
+    return PooledClassifier(tiny_qwen(), N_CLASSES, pooling="last", text_format=FORMAT,
+                            normalize=True).eval()
+
+
+def test_forward_is_the_head_on_embed(tokenizer):
+    model = _normalized_model()
+    ids = torch.tensor([[3, 4, 5, EOS], [6, 7, EOS, PAD]])
+    mask = (ids != PAD).long()
+    with torch.no_grad():
+        assert torch.allclose(model(ids, mask), model.head(model.embed(ids, mask)))
+
+
+def test_normalized_embeddings_have_norm_sqrt_d(tokenizer):
+    texts, _ = synthetic(n_per_class=3)
+    emb = encoder.predict_embeddings(_normalized_model(), tokenizer, texts, max_length=32)
+    assert emb.shape == (len(texts), 32) and emb.dtype == np.float32
+    assert np.allclose(np.linalg.norm(emb, axis=1), 32 ** 0.5, atol=1e-4)
+
+
+def test_predict_embeddings_keeps_input_order_and_ignores_batch_size(tokenizer):
+    texts, _ = synthetic(n_per_class=4)
+    model = _normalized_model()
+    one_by_one = np.stack([encoder.predict_embeddings(model, tokenizer, [t], 32)[0]
+                           for t in texts])
+    batched = encoder.predict_embeddings(model, tokenizer, texts, 32, batch_size=5)
+    assert np.allclose(batched, one_by_one, atol=1e-5)
+
+
+def test_embeddings_give_back_predict_proba(tokenizer):
+    from name_that_llm.experiments.embedding_diagnostics import head_probabilities
+
+    texts, _ = synthetic(n_per_class=3)
+    model = _normalized_model()
+    emb = encoder.predict_embeddings(model, tokenizer, texts, 32)
+    probs = predict_proba(model, tokenizer, texts, 32)
+    assert np.allclose(head_probabilities(emb, model.head.state_dict()), probs, atol=1e-5)

@@ -219,6 +219,9 @@ Métrica principal: balanced accuracy OOF por brazo, media de las semillas 1 y 2
   tiempo en esta máquina es ruidosa, y por diseño no decide [[H005]] en ningún caso. Resumen anterior guardado como diff en este registro: solo cambian
   `method_valid` (false → true) y `H005.status` (INCONCLUSIVE → CONFIRMED).
 - [x] (`2026-11-15`) Análisis y finding [[F005]].
+- [x] (`2026-11-15`) Diagnóstico de embeddings (pedido por el usuario tras los resultados):
+  `experiments/embedding_diagnostics.py` y `embedding_geometry.py`, ver Analysis. Q0 y Q8
+  reentrenados en semilla 1, fold 0; adaptadores y embeddings en `artifacts/` (fuera de git).
 
 ## Results
 
@@ -273,6 +276,54 @@ Los adaptadores LoRA y los pesos base no se guardan en `kb/`.
 - **Kaggle:** la extrapolación (×10) da 0,5–1,7 h para Q8, holgada frente a 9 h, pero solo mide tiempo. Los pesos de
   Q8 en 16 bits ocupan ~15 GB y la T4 tiene 15 GB y no tiene bf16: la inferencia en Kaggle
   está por demostrar.
+
+### Diagnóstico de embeddings (anexo, 2026-11-15)
+
+Vector que ve la cabeza (agrupado y normalizado a norma √d). Semilla 1, fold 0: train
+2.159 pasajes y 120 prompts; validación 540 y 30 prompts. Cuatro variantes: Q0 y Q8, base
+(sin LoRA) y LoRA reentrenado. Figuras y métricas en `kb/research/data/E004/embeddings/`
+(`tsne_*.png`, `pca_*.png`, `cosine_*.png`, `geometry.json`, `checks.json`).
+
+**Comprobaciones:** el fold reentrenado da exactamente lo mismo que en E004 (Q0 0,324,
+Q8 0,444). El adaptador guardado se recarga con diferencia 0 en las probabilidades. La
+comprobación cabeza-sobre-embeddings no pasó la tolerancia fijada (diferencia máxima 0,053
+> 0,01), pero no es un error: con los mismos lotes los embeddings son idénticos, y al cambiar
+la composición del lote (y con ella el ancho del padding en bf16) la dirección cambia muy
+poco (coseno ≥ 0,995, media 0,9993), con un 1–2 % de cambios de clase predicha. Afecta a
+las predicciones del notebook de envío según el tamaño de lote, no a la geometría.
+
+| Validación | ‖media‖ | coseno medio | AUC mismo modelo | AUC mismo prompt | AUC mismo lab. (otro modelo) frente a otro lab. |
+|---|---|---|---|---|---|
+| Q0 base | 0,886 | 0,784 | 0,491 | 0,991 | 0,509 |
+| Q0 LoRA | 0,315 | 0,098 | 0,809 | 0,604 | 0,809 |
+| Q8 base | 0,894 | 0,798 | 0,525 | 0,988 | 0,529 |
+| Q8 LoRA | 0,284 | 0,079 | 0,830 | 0,660 | 0,824 |
+
+(AUC: probabilidad de que un par del tipo indicado sea más similar que uno al azar del resto;
+0,5 = sin estructura.)
+
+- **Los embeddings base agrupan por tema, no por autor.** En validación forman ~30 grupos
+  compactos, uno por prompt (coseno medio 0,95 dentro del mismo prompt frente a 0,78 entre
+  prompts; AUC 0,99), y casi no distinguen al modelo (AUC 0,49–0,53). Es lo esperable en un
+  modelo de embeddings entrenado para similitud semántica.
+- **LoRA reorganiza el espacio:** deshace los grupos por prompt (AUC 0,99 → 0,60–0,66) y
+  ordena por autor (AUC mismo modelo 0,81–0,83 en prompts nuevos). En validación aparecen
+  tres regiones: Google aparte, Anthropic + ZAI (glm-5.3) y OpenAI + Qwen + Moonshot.
+- **Centrado:** los embeddings base no están centrados en 0, sino muy anisótropos (‖media‖
+  0,89, coseno medio ~0,79: todos apuntan a un cono estrecho). Con LoRA bajan a ‖media‖
+  0,26–0,32 y coseno medio ~0,08, casi centrados. Restar la media del train los centra del
+  todo y no cambia ninguna separación (las AUC son iguales en bruto y centradas).
+- **Los hermanos siguen juntos:** en validación, el coseno medio entre pasajes del mismo
+  modelo (Q8 0,237) apenas supera al de modelos distintos del mismo laboratorio (0,198);
+  entre laboratorios distintos es 0,043. Es la geometría de los errores de [[F005]]: el
+  laboratorio se separa, el modelo dentro del laboratorio mucho menos.
+- **Train frente a validación:** en train, Q8 LoRA forma 18 grupos perfectos (AUC 0,99)
+  y en validación se difuminan (0,83): la memorización de [[F005]] se ve en la geometría.
+- **Q0 frente a Q8:** la geometría por pares es parecida (AUC 0,81 frente a 0,83) aunque la
+  accuracy difiere mucho (0,324 frente a 0,444 en este fold). La similitud coseno global
+  mide poco de lo que usa la cabeza lineal; la diferencia de tamaño está en direcciones
+  concretas, no en la forma general de la nube.
+- Limitaciones: un solo fold, ~30 pasajes por modelo en validación; descriptivo, no decide.
 
 ## Decision
 

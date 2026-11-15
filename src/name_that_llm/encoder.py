@@ -135,7 +135,8 @@ class PooledClassifier(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.head = nn.Linear(output_size(backbone.config), n_classes)
 
-    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+    def embed(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        """The pooled (and, with `normalize`, rescaled) vector the head sees."""
         hidden = self.backbone(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
         pooled = POOLING[self.pooling](hidden, attention_mask)
         if self.normalize:
@@ -143,7 +144,10 @@ class PooledClassifier(nn.Module):
             # Unit norm alone caps the logits at the head's weight norm: in E004's
             # check the loss stayed at ~2.5 (chance 2.89) after 30 epochs.
             pooled = nn.functional.normalize(pooled.float(), dim=-1) * pooled.shape[-1] ** 0.5
-        return self.head(self.dropout(pooled))
+        return pooled
+
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        return self.head(self.dropout(self.embed(input_ids, attention_mask)))
 
 
 MeanPoolClassifier = PooledClassifier  # E003 name; mean pooling is the default
@@ -353,3 +357,29 @@ def predict_proba(
             logits = model(input_ids.to(device), mask.to(device))
         probs[idx] = torch.softmax(logits.float(), dim=-1).cpu().numpy()
     return probs
+
+
+@torch.no_grad()
+def predict_embeddings(
+    model: PooledClassifier,
+    tokenizer: PreTrainedTokenizerBase,
+    texts: Sequence[str],
+    max_length: int = 512,
+    batch_size: int = 64,
+    device: torch.device | str = "cpu",
+    bf16: bool = True,
+) -> np.ndarray:
+    """Embeddings before the head (n_texts, dim) as float32, rows in the order of `texts`."""
+    device = torch.device(device)
+    model.eval()
+    ids = tokenize(tokenizer, texts, max_length, model.text_format)
+    order = sorted(range(len(ids)), key=lambda i: len(ids[i]))  # less padding
+    out = None
+    for idx, input_ids, mask in _batches(ids, order, batch_size, tokenizer.pad_token_id):
+        with _autocast(device, bf16):
+            emb = model.embed(input_ids.to(device), mask.to(device))
+        emb = emb.float().cpu().numpy()
+        if out is None:
+            out = np.zeros((len(ids), emb.shape[1]), dtype=np.float32)
+        out[idx] = emb
+    return out

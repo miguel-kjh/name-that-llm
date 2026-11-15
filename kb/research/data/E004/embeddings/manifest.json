@@ -1,0 +1,32 @@
+{
+  "experiment": "E004",
+  "diagnostic": "embedding geometry",
+  "fold_seed": 1,
+  "fold": 0,
+  "variants": [
+    "Q0_base",
+    "Q0_lora",
+    "Q8_base",
+    "Q8_lora"
+  ],
+  "artifacts": "artifacts/E004-embeddings",
+  "tsne": {
+    "perplexity": 30,
+    "seed": 0,
+    "pca_before": 50
+  },
+  "phases": {
+    "extract": {
+      "command": "python -m name_that_llm.experiments.embedding_diagnostics --phase extract",
+      "code_revision": "877ff536649595a7904e2eefb298c072c94f1a2d-dirty",
+      "finished_utc": "2026-11-15T19:06:50+00:00",
+      "runtime_seconds": 2054.9
+    },
+    "analyze": {
+      "command": "python -m name_that_llm.experiments.embedding_diagnostics --phase analyze",
+      "code_revision": "877ff536649595a7904e2eefb298c072c94f1a2d-dirty",
+      "finished_utc": "2026-11-15T19:10:15+00:00",
+      "runtime_seconds": 42.4
+    }
+  }
+}
