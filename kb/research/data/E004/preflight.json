@@ -1,0 +1,81 @@
+{
+  "cuda": true,
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "folds_match_e002": {
+    "0": true,
+    "1": true,
+    "2": true
+  },
+  "arms": {
+    "G": {
+      "model": "google/embeddinggemma-2",
+      "revision": "f9972ac22e696a105c482202646979e33e4b5a1e",
+      "base_weights_dtype": "torch.bfloat16",
+      "trainable_parameters": 6057984,
+      "total_parameters": 277060608,
+      "n_truncated": 0,
+      "max_tokens": 368,
+      "memorize_train_accuracy": 1.0,
+      "memorize_loss": [
+        3.2028839588165283,
+        0.0005754918383900076
+      ],
+      "peak_gpu_gb": 9.24
+    },
+    "Q0": {
+      "model": "Qwen/Qwen3-Embedding-0.6B",
+      "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+      "base_weights_dtype": "torch.bfloat16",
+      "trainable_parameters": 10092544,
+      "total_parameters": 605869056,
+      "n_truncated": 0,
+      "max_tokens": 394,
+      "end_token": "<|endoftext|>",
+      "ends_with_end_token": true,
+      "end_token_appears_once": true,
+      "memorize_train_accuracy": 1.0,
+      "memorize_loss": [
+        3.000685691833496,
+        0.00041504818364046514
+      ],
+      "peak_gpu_gb": 15.78
+    },
+    "Q4": {
+      "model": "Qwen/Qwen3-Embedding-4B",
+      "revision": "5cf2132abc99cad020ac570b19d031efec650f2b",
+      "base_weights_dtype": "torch.bfloat16",
+      "trainable_parameters": 33030144,
+      "total_parameters": 4054804480,
+      "n_truncated": 0,
+      "max_tokens": 394,
+      "end_token": "<|endoftext|>",
+      "ends_with_end_token": true,
+      "end_token_appears_once": true,
+      "memorize_train_accuracy": 1.0,
+      "memorize_loss": [
+        3.0146374702453613,
+        8.13375136203831e-05
+      ],
+      "peak_gpu_gb": 11.4
+    },
+    "Q8": {
+      "model": "Qwen/Qwen3-Embedding-8B",
+      "revision": "1d8ad4ca9b3dd8059ad90a75d4983776a23d44af",
+      "base_weights_dtype": "torch.bfloat16",
+      "trainable_parameters": 43646976,
+      "total_parameters": 7610942464,
+      "n_truncated": 0,
+      "max_tokens": 394,
+      "end_token": "<|endoftext|>",
+      "ends_with_end_token": true,
+      "end_token_appears_once": true,
+      "memorize_train_accuracy": 1.0,
+      "memorize_loss": [
+        3.04419606924057,
+        3.4465585713405744e-05
+      ],
+      "peak_gpu_gb": 17.23
+    }
+  },
+  "passed": true
+}

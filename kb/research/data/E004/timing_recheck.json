@@ -1,0 +1,16 @@
+{
+  "Q4": {
+    "n_texts": 4000,
+    "seconds": 124.3,
+    "passed": true,
+    "kaggle_estimate_seconds": 1243.2,
+    "fits_kaggle": true
+  },
+  "Q8": {
+    "n_texts": 4000,
+    "seconds": 614.6,
+    "passed": false,
+    "kaggle_estimate_seconds": 6145.7,
+    "fits_kaggle": true
+  }
+}

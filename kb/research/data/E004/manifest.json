@@ -1,0 +1,269 @@
+{
+  "experiment": "E004",
+  "hypotheses": [
+    "H005"
+  ],
+  "issue": 7,
+  "data": {
+    "path": "data/train.csv",
+    "sha256": "40a22ce8d88c5f46feb4637a099db815bef5f713ffe53e89dbe1b7b21de77707",
+    "rows": 2699,
+    "prompts": 150,
+    "models": 18
+  },
+  "validation": {
+    "folds_csv": "kb/research/data/E002/folds.csv",
+    "n_splits": 5,
+    "search_seed": 0,
+    "eval_seeds": [
+      1,
+      2
+    ],
+    "control": {
+      "arm": "Q0",
+      "seed": 1
+    }
+  },
+  "arms": {
+    "G": {
+      "model": "google/embeddinggemma-2",
+      "revision": "f9972ac22e696a105c482202646979e33e4b5a1e",
+      "pooling": "mean",
+      "normalize": true,
+      "prompt": "task: classification | query: ",
+      "end_token": null,
+      "dtype": "torch.bfloat16",
+      "gradient_checkpointing": false,
+      "micro_batch_size": 16,
+      "load_kwargs": {
+        "vision_config": null,
+        "audio_config": null
+      }
+    },
+    "Q0": {
+      "model": "Qwen/Qwen3-Embedding-0.6B",
+      "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+      "pooling": "last",
+      "normalize": true,
+      "prompt": "Instruct: Identify which language model wrote this passage\nQuery:",
+      "end_token": "<|endoftext|>",
+      "dtype": "torch.bfloat16",
+      "gradient_checkpointing": false,
+      "micro_batch_size": 16,
+      "load_kwargs": {}
+    },
+    "Q4": {
+      "model": "Qwen/Qwen3-Embedding-4B",
+      "revision": "5cf2132abc99cad020ac570b19d031efec650f2b",
+      "pooling": "last",
+      "normalize": true,
+      "prompt": "Instruct: Identify which language model wrote this passage\nQuery:",
+      "end_token": "<|endoftext|>",
+      "dtype": "torch.bfloat16",
+      "gradient_checkpointing": true,
+      "micro_batch_size": 16,
+      "load_kwargs": {}
+    },
+    "Q8": {
+      "model": "Qwen/Qwen3-Embedding-8B",
+      "revision": "1d8ad4ca9b3dd8059ad90a75d4983776a23d44af",
+      "pooling": "last",
+      "normalize": true,
+      "prompt": "Instruct: Identify which language model wrote this passage\nQuery:",
+      "end_token": "<|endoftext|>",
+      "dtype": "torch.bfloat16",
+      "gradient_checkpointing": true,
+      "micro_batch_size": 4,
+      "load_kwargs": {}
+    }
+  },
+  "recipe": {
+    "lr": 0.0,
+    "epochs": 0,
+    "schedule_epochs": null,
+    "batch_size": 16,
+    "micro_batch_size": null,
+    "max_length": 512,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "grad_clip": 1.0,
+    "dropout": 0.1,
+    "seed": 0,
+    "bf16": true,
+    "lora": {
+      "r": 16,
+      "alpha": 32,
+      "dropout": 0.05,
+      "target_modules": "all-linear"
+    },
+    "head": "dropout + linear",
+    "search_lrs": [
+      0.0001,
+      0.0003
+    ],
+    "lr_search_arms": [
+      "G",
+      "Q0"
+    ],
+    "lr_source": {
+      "Q4": "Q0",
+      "Q8": "Q0"
+    },
+    "max_epochs": 6,
+    "schedule": "linear warmup 10% + linear decay over max_epochs; eval and control stop after the chosen epoch"
+  },
+  "versions": {
+    "python": "3.12.15",
+    "torch": "2.11.0+cu128",
+    "transformers": "5.23.0",
+    "peft": "0.21.3",
+    "sklearn": "1.9.1",
+    "pandas": "3.1.1",
+    "numpy": "2.5.4"
+  },
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 4090"
+  },
+  "phases": {
+    "preflight": {
+      "command": "python -m name_that_llm.experiments.run_lora --phase preflight",
+      "code_revision": "dcbc35ab4ca7e121193b561670f34ab73c32812c-dirty",
+      "arms": [
+        "G",
+        "Q0",
+        "Q4",
+        "Q8"
+      ],
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-14T22:29:22+00:00",
+      "runtime_seconds": 494.9
+    },
+    "pilot": {
+      "command": "python -m name_that_llm.experiments.run_lora --phase pilot",
+      "code_revision": "dcbc35ab4ca7e121193b561670f34ab73c32812c-dirty",
+      "arms": [
+        "G",
+        "Q0",
+        "Q4",
+        "Q8"
+      ],
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-14T22:39:03+00:00",
+      "runtime_seconds": 577.3
+    },
+    "search": {
+      "command": "python -m name_that_llm.experiments.run_lora --phase search",
+      "code_revision": "dcbc35ab4ca7e121193b561670f34ab73c32812c-dirty",
+      "arms": [
+        "G",
+        "Q0",
+        "Q4",
+        "Q8"
+      ],
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-15T05:18:49+00:00",
+      "runtime_seconds": 23983.4
+    },
+    "eval": {
+      "command": "python -m name_that_llm.experiments.run_lora --phase eval",
+      "code_revision": "dcbc35ab4ca7e121193b561670f34ab73c32812c-dirty",
+      "arms": [
+        "G",
+        "Q0",
+        "Q4",
+        "Q8"
+      ],
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-15T14:17:45+00:00",
+      "runtime_seconds": 32333.0
+    },
+    "control": {
+      "command": "python -m name_that_llm.experiments.run_lora --phase control",
+      "code_revision": "dcbc35ab4ca7e121193b561670f34ab73c32812c-dirty",
+      "arms": [
+        "G",
+        "Q0",
+        "Q4",
+        "Q8"
+      ],
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-15T14:32:45+00:00",
+      "runtime_seconds": 895.4
+    },
+    "timing": {
+      "command": "python -m name_that_llm.experiments.run_lora --phase timing",
+      "code_revision": "dcbc35ab4ca7e121193b561670f34ab73c32812c-dirty",
+      "arms": [
+        "G",
+        "Q0",
+        "Q4",
+        "Q8"
+      ],
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-15T14:51:11+00:00",
+      "runtime_seconds": 1102.9
+    },
+    "summarize": {
+      "command": "python -m name_that_llm.experiments.run_lora --phase summarize",
+      "code_revision": "dcbc35ab4ca7e121193b561670f34ab73c32812c-dirty",
+      "arms": [
+        "G",
+        "Q0",
+        "Q4",
+        "Q8"
+      ],
+      "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_prompts": null,
+      "finished_utc": "2026-11-15T15:03:02+00:00",
+      "runtime_seconds": 0.9
+    }
+  }
+}

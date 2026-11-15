@@ -2,17 +2,17 @@
 id: "H005"
 aliases: ["H005"]
 type: hypothesis
-status: PROPOSED
+status: CONFIRMED
 created: "2026-11-14"
-last_updated: "2026-11-14"
+last_updated: "2026-11-15"
 tags: [encoder, embeddings, lora, scaling]
 ---
 
 # H005 — Scaling LoRA-tuned embedding encoders to 4B-8B reaches the mission target
 
-> **Status**: PROPOSED
+> **Status**: CONFIRMED
 > **Created**: 2026-11-14
-> **Last updated**: 2026-11-14
+> **Last updated**: 2026-11-15
 
 ## Statement
 
@@ -104,7 +104,13 @@ basado en LLM, LLM2vec).
 
 ## Conclusion
 
-_Pendiente de E004._
+**CONFIRMED** por [[E004]] ([[F005]]). Qwen3-Embedding-8B con LoRA llega a 0,443 (semillas
+1 y 2; 0,445 / 0,441), por encima de 0,412 en los 10 folds; el 4B se queda en 0,400. Control
+0,058, sin truncados, runs estables. La escala funciona como predecía la hipótesis
+(0,357 → 0,400 → 0,443), pero no por el mecanismo previsto: LoRA no evita la memorización
+(pérdida de train ~0,005 en el 8B). No hay señal de afinidad de familia con `qwen3.8-max`.
+Queda abierto el riesgo de coste en Kaggle: el tiempo extrapolado cabe, la memoria en una T4
+está por verificar.
 
 ## Links
 
@@ -114,3 +120,4 @@ _Pendiente de E004._
 - Prior findings: [[F002]], [[F003]], [[F004]]
 - Related hypothesis: [[H003]], [[H004]]
 - Experiment: [[E004]]
+- Finding: [[F005]]

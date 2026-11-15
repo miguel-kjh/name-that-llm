@@ -2,7 +2,7 @@
 id: "E004"
 aliases: ["E004"]
 type: experiment
-status: DESIGNED
+status: COMPLETED
 hypothesis: "H005"
 created: "2026-11-14"
 completed: ""
@@ -11,7 +11,7 @@ tags: [encoder, embeddings, lora, scaling]
 
 # E004 — LoRA-tuned embeddinggemma-2 and Qwen3-Embedding 0.6B-4B-8B against gte and the baseline
 
-> **Status**: DESIGNED
+> **Status**: COMPLETED
 > **Hypothesis**: [[H005]]
 > **Created**: 2026-11-14
 > **Completed**:
@@ -200,17 +200,32 @@ Métrica principal: balanced accuracy OOF por brazo, media de las semillas 1 y 2
   checkpointing: Q4 con micro-batch 16, pico 11,5 GB; Q8 con micro-batch 4, pico 16,9 GB al
   entrenar y 17,5 GB al predecir (de 24 GB). **Q8 cabe en bf16; no hace falta QLoRA.**
   Micro-batches finales: G 16, Q0 16, Q4 16, Q8 4 (batch efectivo 16 en todos).
-- [ ] Preflight y piloto de tiempo y memoria.
-- [ ] Búsqueda (semilla 0).
-- [ ] Decisión (semillas 1 y 2).
-- [ ] Control, guardarraíl de inferencia y resumen.
-- [ ] Análisis y finding.
+- [x] (`2026-11-14`) Preflight superado (pico Q8 17,2 GB). Piloto: proyección 15,0 h
+  (G 1,2; Q0 1,6; Q4 5,6; Q8 6,6), dentro del límite de 3× 12 h. Lanzador desatendido con
+  permiso del usuario; ninguna fase necesitó reintento.
+- [x] (`2026-11-15`) Búsqueda (6,7 h): todos eligen lr 3e-4. G 5 épocas (0,309), Q0 5
+  (0,361), Q4 6 (0,423), Q8 6 (0,436). Q0 pasa la regla de parada.
+- [x] (`2026-11-15`) Decisión (9,0 h): 40 runs. Q4 ~22 min y Q8 ~26 min por run.
+- [x] (`2026-11-15`) Control (Q0, 0,058), timing y resumen. Fin a las 14:51 UTC; ~16,5 h
+  en total.
+- [x] (`2026-11-15`) **Corrección del resumen tras la ejecución:** el código metía el
+  guardarraíl de inferencia en `method_valid`, así que el fallo de Q4 (871 s > 600 s) dejaba
+  [[H005]] como INCONCLUSIVE. El diseño, escrito antes de ejecutar (Expected Outcome), dice
+  que un brazo que no cumple el tiempo *puede confirmar o rechazar H005, pero no pasa a
+  candidato de envío*. Se corrigió el código para que coincida con el diseño
+  (`is_method_valid`, `submission_candidates`, con tests) y se repitió solo `summarize`
+  (CPU, sin reentrenar): método válido, H005 CONFIRMED, candidatos G, Q0 y Q8. Q8 pasó el tiempo en la
+  medición oficial (166 s) pero no en una repetición (615 s), ver Analysis: la medición de
+  tiempo en esta máquina es ruidosa, y por diseño no decide [[H005]] en ningún caso. Resumen anterior guardado como diff en este registro: solo cambian
+  `method_valid` (false → true) y `H005.status` (INCONCLUSIVE → CONFIRMED).
+- [x] (`2026-11-15`) Análisis y finding [[F005]].
 
 ## Results
 
-Datos en bruto previstos en `kb/research/data/E004/` (mismo formato que E003):
+Datos en bruto en `kb/research/data/E004/` (mismo formato que E003):
 
-- `manifest.json`, `preflight.json`, `pilot.json`, `timing.json`.
+- `manifest.json`, `preflight.json`, `pilot.json`, `timing.json` y `timing_recheck.json`
+  (repetición diagnóstica de Q4 y Q8, ver Analysis).
 - `search.csv`, `search_curves.csv`, `runs.csv`.
 - `oof/`: un parquet por run con las probabilidades OOF.
 - `per_class_recall.csv`, `length_buckets.csv`, `confusion_{brazo}.csv`.
@@ -220,11 +235,58 @@ Los adaptadores LoRA y los pesos base no se guardan en `kb/`.
 
 ## Analysis
 
-_Pendiente._
+**Resultado principal (semillas 1 y 2, `summary.json`):**
+
+| Brazo | Config | Semilla 0 | Decisión | − baseline (victorias) | − gte (victorias) |
+|---|---|---|---|---|---|
+| G embeddinggemma-2 | 3e-4, 5 ép. | 0,309 | 0,301 | −0,006 (4/10) | −0,056 (0/10) |
+| Q0 Qwen3-Emb 0,6B | 3e-4, 5 ép. | 0,361 | 0,357 | +0,050 (10/10) | +0,001 (3/10, 1 empate) |
+| Q4 Qwen3-Emb 4B | 3e-4, 6 ép. | 0,423 | 0,400 | +0,093 (10/10) | +0,044 (10/10) |
+| Q8 Qwen3-Emb 8B | 3e-4, 6 ép. | 0,436 | **0,443** | +0,136 (10/10) | +0,086 (10/10) |
+
+- **[[H005]] se confirma con Q8:** 0,443 ≥ 0,412, y cada uno de los 10 folds supera 0,412
+  (peor 0,415). Q4 se queda entre los dos umbrales (0,400).
+- **Curva de escala regular:** +0,043 de 0,6B a 4B (10/10 folds) y +0,043 de 4B a 8B (8/10).
+  Con un salto de tamaño de ~7× y ~2× respectivamente, la ganancia no se ha aplanado.
+- **Q0 empata con gte** (0,357 frente a 0,357): a igual escala, Qwen con LoRA rinde como gte
+  con fine-tuning completo. La ventaja viene del tamaño, no de la familia ni del método.
+- **embeddinggemma-2 no sirve** con esta receta: queda al nivel del baseline. No se investigó
+  más (podría ser el pooling, el prompt o el LoRA en un modelo pequeño); no es prioritario.
+- **Laboratorio:** la balanced accuracy por laboratorio sube de 0,556 (G) a 0,609 (Q0), 0,644
+  (Q4) y 0,679 (Q8). La proporción de errores dentro del laboratorio sube (51 % → 58 %): los
+  modelos grandes resuelven antes el laboratorio que el modelo concreto.
+- **Recall por clase (Q8):** lo mejor, claude-opus-5 0,65 y gemini-3.1-pro-preview 0,62; lo
+  peor, claude-fable-5 0,26, glm-5.3 0,30, glm-5.3-flash 0,33 y gpt-5.6-sol/terra 0,35–0,36.
+  `qwen3.8-max` 0,54 (cuarto): no hay rastro claro de afinidad de familia.
+- **Longitud:** Q8 0,366 (< 80 palabras), 0,454 (80–149), 0,521 (150+). El orden se mantiene
+  en todos los brazos; los pasajes cortos son el techo principal.
+- **Memorización:** Q4 y Q8 acaban con pérdida de train 0,001–0,09; Q0 0,25–0,57. LoRA r 16 no
+  impide memorizar a los modelos grandes, y aun así generalizan mejor.
+- **Guardarraíles:** control 0,058 (≤ 0,08); 0 truncados; todos los runs de decisión
+  estables. Inferencia de 4.000 pasajes en la 4090: G 48 s, Q0 17 s, Q8 166 s; Q4 871 s
+  (falla). Repetido como diagnóstico (scratchpad, sin tocar `timing.json`): Q4 124 s y
+  Q8 615 s, es decir, al revés. En ambas mediciones la VRAM estaba a ~23,9 de 24 GB durante la
+  predicción: casi seguro el driver de WSL desborda a memoria compartida del sistema y el
+  tiempo varía ×4–7 según cómo quede la caché del asignador. **El guardarraíl de inferencia
+  no es fiable en esta máquina**; no dice nada del coste real del modelo (el cálculo es el
+  mismo en cada ejecución) ni de la accuracy. La medición que cuenta es la de Kaggle.
+- **Kaggle:** la extrapolación (×10) da 0,5–1,7 h para Q8, holgada frente a 9 h, pero solo mide tiempo. Los pesos de
+  Q8 en 16 bits ocupan ~15 GB y la T4 tiene 15 GB y no tiene bf16: la inferencia en Kaggle
+  está por demostrar.
 
 ## Decision
 
-_Pendiente._
+- [[H005]] → **CONFIRMED** (Q8, 0,443). Finding [[F005]].
+- Q8 pasa a ser el modelo principal. Siguiente paso: notebook de envío con Q8 (adaptador
+  entrenado en local con todo el train, subido como dataset) y medir en Kaggle memoria y
+  tiempo en fp16, o con el modelo repartido en 2×T4. Si no cabe en las 9 h o en la memoria,
+  parar y consultar ([[CHALLENGE]], condición de bloqueo).
+- Q4 queda como alternativa más barata si Q8 no cabe en Kaggle.
+- `submission_candidates` en `summary.json` sale de una sola medición de tiempo ruidosa; no
+  se usa para decidir. Para el notebook, predecir con lotes más pequeños (dejar margen de
+  VRAM) y medir en Kaggle.
+- embeddinggemma-2 se descarta.
+- Las OOF de Q8, Q4, Q0 y gte quedan disponibles para el ensemble.
 
 ## Links
 
@@ -233,4 +295,6 @@ _Pendiente._
 - Parent Hypothesis: [[H005]]
 - Comparators: [[E003]], [[E002]]
 - Prior findings: [[F003]], [[F004]]
+- Finding: [[F005]]
 - Literature: [[L001]]
+- Finding: [[F005]]

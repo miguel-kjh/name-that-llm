@@ -7,18 +7,17 @@ type: active-state
 
 ## Current Objective
 
-Superar el baseline (0,307 en las semillas 1 y 2, [[F002]]) en al menos 10 puntos de balanced
-accuracy (≥ 0,412). El mejor modelo individual es `gte-modernbert-base` fine-tuneado: 0,357
-([[F003]]). Ahora se prueba si escalar encoders de embeddings con LoRA (Qwen3-Embedding 4B/8B)
-llega al objetivo ([[H005]]).
+Convertir el primer modelo que cumple el objetivo local en un envío válido de Kaggle.
+Qwen3-Embedding-8B con LoRA llega a 0,443 de balanced accuracy (baseline 0,307 + 13,6
+puntos, ≥ 0,412 en los 10 folds; [[F005]]). [[H005]] confirmada.
 
 ## Next Step
 
-[[E004]] diseñado (issue #7, rama `e004-lora`), con el protocolo reducido acordado con el
-usuario: G y Q0 buscan lr, Q4 y Q8 heredan el lr de Q0, y Q8 se ejecuta siempre. Siguiente:
-implementar según el plan del issue #7 (añadir `peft`, ampliar `encoder.py`, `runs.py`,
-`run_lora.py` y tests), regresión de E003 y smoke test. Ejecutar preflight, piloto y
-búsqueda **solo cuando el usuario lo diga**.
+[[E004]] completado (rama `e004-lora`, issue #7); falta revisar el PR con el usuario.
+Después: diseñar el notebook de envío con Q8 (adaptador entrenado en local con todo el
+train, subido como dataset) y medir en Kaggle memoria y tiempo de inferencia: la T4 tiene
+15 GB y no tiene bf16, y los pesos del 8B ocupan ~15 GB (fp16, 2×T4 o cuantización). Si no
+cabe, parar y consultar. El ensemble (Q8, Q4, gte) queda detrás.
 
 ## Blocker
 
@@ -26,8 +25,9 @@ None.
 
 ## Working Set
 
-- [[H005]] → [[E004]]: encoders de embeddings con LoRA (embeddinggemma-2, Qwen3-Embedding
-  0,6B/4B/8B); umbrales 0,412 (confirma) y 0,377 (rechaza).
+- [[H005]] → [[E004]] → [[F005]]: Qwen3-Embedding con LoRA escala 0,357 (0,6B) → 0,400 (4B)
+  → 0,443 (8B); embeddinggemma-2 0,301 (descartado). OOF en `kb/research/data/E004/oof/`.
+  La medición de tiempo en la 4090 es ruidosa (VRAM llena, WSL desborda a memoria del sistema).
 - [[H003]], [[H004]] → [[E003]] → [[F003]], [[F004]]: encoder fine-tuneado 0,357 (+0,05);
   contrastivo > MLM. OOF por run en `kb/research/data/E003/oof/` (semillas 1 y 2 para el
   ensemble). Base bibliográfica: [[L001]] (HIGH); [[L002]] (LOW).
@@ -37,7 +37,7 @@ None.
   quizá sí.
 - Código: `src/name_that_llm/{validation,metrics,baseline,labels}.py`,
   `src/name_that_llm/{encoder,decisions}.py`,
-  `src/name_that_llm/experiments/{run_baseline,run_encoder,provenance}.py`.
+  `src/name_that_llm/experiments/{run_baseline,run_encoder,runs,run_lora,provenance}.py`.
 - Entorno GPU: `uv sync --group gpu` (torch 2.11+cu128, transformers 5.23), RTX 4090. Los
   pesos se cargan siempre en float32: gte-modernbert-base viene en float16 y diverge a NaN.
 - Primary skill de la fase: `$build-maintainable-software` (implementación de E004).
@@ -45,7 +45,5 @@ None.
 ## Links
 
 - Mission: [[CHALLENGE]]
-- Latest findings: [[F003]], [[F004]]
-- Last experiment: [[E003]]
-- Designed experiment: [[E004]]
-- Open hypothesis: [[H005]]
+- Latest findings: [[F005]], [[F004]]
+- Last experiment: [[E004]]

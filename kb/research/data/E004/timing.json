@@ -1,0 +1,30 @@
+{
+  "G": {
+    "n_texts": 4000,
+    "seconds": 47.9,
+    "passed": true,
+    "kaggle_estimate_seconds": 478.7,
+    "fits_kaggle": true
+  },
+  "Q0": {
+    "n_texts": 4000,
+    "seconds": 16.6,
+    "passed": true,
+    "kaggle_estimate_seconds": 165.9,
+    "fits_kaggle": true
+  },
+  "Q4": {
+    "n_texts": 4000,
+    "seconds": 871.3,
+    "passed": false,
+    "kaggle_estimate_seconds": 8712.6,
+    "fits_kaggle": true
+  },
+  "Q8": {
+    "n_texts": 4000,
+    "seconds": 165.7,
+    "passed": true,
+    "kaggle_estimate_seconds": 1656.7,
+    "fits_kaggle": true
+  }
+}
